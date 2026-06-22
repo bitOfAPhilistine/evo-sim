@@ -2,8 +2,9 @@ from tkinter import Canvas, Tk, ttk
 from internal.sectors import Sectors
 from internal.smartList import SmartList
 from internal.vector2 import Vector2
-from internal.objects import GameObject
+from internal.objects import GameObject, PhysicsObject
 
+import time
 import config
 
 
@@ -24,10 +25,11 @@ for y in range(gradSize.y):
         canvas.create_rectangle(x * 10, y * 10, (x + 1) * 10, (y + 1) * 10, fill=color)
 
 objects = SmartList()
+physObjects = SmartList()
 
 sectors = Sectors(config.CANVAS_SIZE.x // config.SECTOR_SIZE.x, config.CANVAS_SIZE.y // config.SECTOR_SIZE.y)
 
-# Create a test object on left mouse click and remove all on right mouse click
+# Create a basic object on left mouse click and a physics object on right mouse click, then delete all with spacebar
 def on_left_click(event):
     obj = GameObject(
         canvas=canvas,
@@ -38,22 +40,54 @@ def on_left_click(event):
         color="white"
     )
     obj.draw()
-    
-    print(objects)
-    print(sectors)
 canvas.bind("<Button-1>", on_left_click)
 
 def on_right_click(event):
+    obj = PhysicsObject(
+        canvas=canvas,
+        sectors=sectors,
+        objects=objects,
+        physObjects=physObjects,
+        pos=Vector2(event.x, event.y),
+        radius=10,
+        color="red",
+        mass=1.0,
+        drag=0.1
+    )
+    obj.draw()
+canvas.bind("<Button-3>", on_right_click)
+
+def on_spacebar(event=None):
+    print("Deleting all objects")
+
     for obj in objects:
         if obj != None:
             obj.delete()
+canvas.bind("<space>", on_spacebar)
+
+
+def main(dt):
+    for obj in physObjects:
+        if obj:
+            obj.update(dt)
     
-    print(objects)
-    print(sectors)
-canvas.bind("<Button-3>", on_right_click)
+    for obj in objects:
+        if obj != None:
+            obj.draw()
 
 
 if __name__ == "__main__":
-    frame.pack()
-    canvas.pack()
-    root.mainloop()
+    dt = 1/60
+    while True:
+        t = time.time()
+
+        main(dt)
+
+        frame.pack()
+        canvas.pack()
+        root.update()
+
+        ft = time.time() - t
+        print(f"Frame time: {ft:.4f}, Objects: {len(objects)}, PhysObjects: {len(physObjects)}")
+        time.sleep(max(0, 1/60 - ft))
+        dt = max(1/60, ft)

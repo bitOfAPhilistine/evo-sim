@@ -29,3 +29,11 @@ class Sectors:
     def remove_from_sector(self, pos: Vector2, index: int) -> None:
         sector = self.get_sector(pos)
         sector.remove(index)
+    
+    # Get the given sector and the 8 surrounding sectors
+    def get_sectors_around(self, pos: Vector2) -> list[SmartList]:
+        sectors = []
+        for y in range(max(0, pos.y - 1), min(self.height, pos.y + 2)):
+            for x in range(max(0, pos.x - 1), min(self.width, pos.x + 2)):
+                sectors.append(self.get_sector(Vector2(x, y)))
+        return sectors

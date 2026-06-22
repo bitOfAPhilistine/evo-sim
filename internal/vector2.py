@@ -17,8 +17,7 @@ class Vector2:
         return Vector2(self.x - other.x, self.y - other.y)
 
     def __mul__(self, other):
-        if isinstance(other, Vector2):
-            return Vector2(self.x * other.x, self.y * other.y)
+        return Vector2(self.x * other.x, self.y * other.y)
 
     def __truediv__(self, other):
         if isinstance(other, Vector2):
