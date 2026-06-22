@@ -15,10 +15,17 @@ class SmartList(list):
             return len(self) - 1
     
     def remove(self, index: int):
+        if index < 0 or index >= len(self):
+            raise IndexError("Index out of bounds")
+
         if index == len(self) - 1:
             self.pop()
-        elif 0 <= index < len(self) - 1:
-            self._freedIndices.append(index)
-            self[index] = None
-        else:
-            raise IndexError("Index out of bounds")
+
+            if len(self) > 0 and self[len(self) - 1] is None:
+                self._freedIndices.pop(self._freedIndices.index(len(self) - 1))
+                self.remove(len(self) - 1)
+            
+            return
+        
+        self._freedIndices.append(index)
+        self[index] = None
