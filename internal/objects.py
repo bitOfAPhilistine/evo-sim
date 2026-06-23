@@ -26,6 +26,8 @@ class GameObject:
         self.update_sector()
 
     def draw(self):
+        if not self.canvas.winfo_exists():
+            return
         if self.shape is not None:
             self.canvas.delete(self.shape)
         
@@ -47,9 +49,10 @@ class GameObject:
             self.sectorIndex = self.sectors.add_to_sector(self.sectorPos, self)
     
     def delete(self):
-        if self.shape is not None:
+        if self.shape is not None and self.canvas.winfo_exists():
             self.canvas.delete(self.shape)
-        if self.sectorIndex is not None:
+            self.shape = None
+        if self.sectorIndex is not None and self.sectorPos is not None:
             self.sectors.remove_from_sector(self.sectorPos, self.sectorIndex)
         if self.objectIndex is not None:
             self.objects.remove(self.objectIndex)
