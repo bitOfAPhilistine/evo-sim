@@ -2,6 +2,7 @@ from tkinter import Canvas, Tk, ttk, TclError
 from struct import Struct
 from internal.sectors import Sectors
 from internal.smartList import SmartList
+from internal.tiles import Tiles
 from internal.vector2 import Vector2
 from internal.objects import GameObject, PhysicsObject
 
@@ -20,18 +21,17 @@ canvas = Canvas(frame, width=config.CANVAS_SIZE.x, height=config.CANVAS_SIZE.y, 
 frame.pack()
 canvas.pack()
 
-# Add an xy gradient background for testing
-gradSize = Vector2(config.CANVAS_SIZE.x // 10, config.CANVAS_SIZE.y // 10)
-for y in range(gradSize.y):
-    for x in range(gradSize.x):
-        color = f"#{int(255 * x / gradSize.x):02x}{int(255 * y / gradSize.y):02x}00"
-        canvas.create_rectangle(x * 10, y * 10, (x + 1) * 10, (y + 1) * 10, fill=color)
 
 class W():
     def __init__(self):
+        print("Initializing world...")
+
         self.objects: SmartList = SmartList()
         self.physObjects: SmartList = SmartList()   
-        self.sectors: Sectors = Sectors(config.CANVAS_SIZE.x // config.SECTOR_SIZE.x, config.CANVAS_SIZE.y // config.SECTOR_SIZE.y)
+        self.sectors: Sectors = Sectors()
+        self.tiles: Tiles = Tiles(3)
+
+        self.tiles.draw(canvas)
 world = W()
 
 
@@ -84,6 +84,8 @@ root.protocol("WM_DELETE_WINDOW", on_closing)
 
 
 def main(dt):
+    world.tiles.draw(canvas)
+    
     for obj in world.physObjects:
         if obj:
             obj.update(dt)

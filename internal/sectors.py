@@ -5,11 +5,11 @@ import config
 
 
 class Sectors:
-    def __init__(self, width: int, height: int):
-        self.width = width
-        self.height = height
-        self.sectorSize = Vector2(config.CANVAS_SIZE.x / width, config.CANVAS_SIZE.y / height)
-        self.sectors = [[SmartList() for _ in range(width)] for _ in range(height)]
+    def __init__(self):
+        self.width = config.CANVAS_SIZE.x // config.SECTOR_SIZE.x
+        self.height = config.CANVAS_SIZE.y // config.SECTOR_SIZE.y
+        self.sectorSize = config.SECTOR_SIZE
+        self.sectors = [[SmartList() for _ in range(self.width)] for _ in range(self.height)]
     
     def __repr__(self):
         out = ''''''

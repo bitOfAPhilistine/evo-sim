@@ -122,4 +122,5 @@ class PhysicsObject(GameObject):
         self.acceleration = Vector2(0, 0)
         self.checkBounds()
         self.update_sector()
-        
+
+
