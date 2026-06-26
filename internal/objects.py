@@ -8,8 +8,7 @@ import random, config
 
 # Base object with basic properties
 class GameObject:
-    def __init__(self, canvas: Canvas, sectors: Sectors, objects: SmartList, pos: Vector2, radius: float, color: str | tuple[int, int, int]):
-        self.canvas = canvas
+    def __init__(self, sectors: Sectors, objects: SmartList, pos: Vector2, radius: float, color: str | tuple[int, int, int]):
         self.sectors = sectors
         self.objects = objects
         self.sectorPos = None
@@ -25,13 +24,13 @@ class GameObject:
 
         self.update_sector()
 
-    def draw(self):
-        if not self.canvas.winfo_exists():
+    def draw(self, canvas):
+        if not canvas.winfo_exists():
             return
         if self.shape is not None:
-            self.canvas.delete(self.shape)
+            canvas.delete(self.shape)
         
-        self.shape = self.canvas.create_oval(
+        self.shape = canvas.create_oval(
             self.pos.x - self.radius, self.pos.y - self.radius,
             self.pos.x + self.radius, self.pos.y + self.radius,
             fill=self.color
@@ -44,16 +43,16 @@ class GameObject:
         )
         if self.sectorPos is None or self.sectorIndex is None or self.sectorPos != sectorPos:
             if self.sectorPos is not None:
-                self.sectors.remove_from_sector(self.sectorPos, self.sectorIndex)
+                self.sectors.get(self.sectorPos).objects.remove(self.sectorIndex)
             self.sectorPos = sectorPos
-            self.sectorIndex = self.sectors.add_to_sector(self.sectorPos, self)
+            self.sectorIndex = self.sectors.get(self.sectorPos).objects.add(self)
     
     def delete(self):
         if self.shape is not None and self.canvas.winfo_exists():
             self.canvas.delete(self.shape)
             self.shape = None
         if self.sectorIndex is not None and self.sectorPos is not None:
-            self.sectors.remove_from_sector(self.sectorPos, self.sectorIndex)
+            self.sectors.get(self.sectorPos).objects.remove(self.sectorIndex)
         if self.objectIndex is not None:
             self.objects.remove(self.objectIndex)
 
@@ -61,7 +60,6 @@ class GameObject:
 # Physics object
 class PhysicsObject(GameObject):
     def __init__(self, 
-                    canvas: Canvas, 
                     sectors: Sectors, 
                     objects: SmartList, 
                     physObjects: SmartList, 
@@ -71,7 +69,7 @@ class PhysicsObject(GameObject):
                     mass: float, 
                     drag: float
                 ):
-        super().__init__(canvas, sectors, objects, pos, radius, color)
+        super().__init__(sectors, objects, pos, radius, color)
         self.mass = mass
         self.drag = drag
         self.velocity = Vector2(0, 0)
@@ -113,7 +111,8 @@ class PhysicsObject(GameObject):
 
         sectorsToCheck = self.sectors.get_sectors_around(self.sectorPos)
         for sector in sectorsToCheck:
-            for obj in sector:
+            objects = sector.objects
+            for obj in objects:
                 if obj and obj is not self:
                     self.collide(obj)
 
@@ -122,5 +121,3 @@ class PhysicsObject(GameObject):
         self.acceleration = Vector2(0, 0)
         self.checkBounds()
         self.update_sector()
-
-

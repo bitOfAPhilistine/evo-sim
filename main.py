@@ -1,8 +1,6 @@
 from tkinter import Canvas, Tk, ttk, TclError
-from struct import Struct
 from internal.sectors import Sectors
 from internal.smartList import SmartList
-from internal.tiles import Tiles
 from internal.vector2 import Vector2
 from internal.objects import GameObject, PhysicsObject
 
@@ -28,30 +26,24 @@ class W():
 
         self.objects: SmartList = SmartList()
         self.physObjects: SmartList = SmartList()   
-        self.sectors: Sectors = Sectors()
-        self.tiles: Tiles = Tiles(3)
-
-        self.tiles.draw(canvas)
+        self.sectors: Sectors = Sectors(3)
 world = W()
 
 
 # Create a basic object on left mouse click/drag and a physics object on right mouse click/drag, then delete all with spacebar
 def on_left_click(event):
     obj = GameObject(
-        canvas=canvas,
         sectors=world.sectors,
         objects=world.objects,
         pos=Vector2(event.x, event.y),
         radius=10,
         color="white"
     )
-    obj.draw()
 canvas.bind("<Button-1>", on_left_click)
 canvas.bind("<B1-Motion>", on_left_click)
 
 def on_right_click(event):
     obj = PhysicsObject(
-        canvas=canvas,
         sectors=world.sectors,
         objects=world.objects,
         physObjects=world.physObjects,
@@ -61,7 +53,6 @@ def on_right_click(event):
         mass=1.0,
         drag=0.1
     )
-    obj.draw()
 canvas.bind("<Button-3>", on_right_click)
 canvas.bind("<B3-Motion>", on_right_click)
 
@@ -79,12 +70,11 @@ def on_closing(event=None):
     global running
     running = False
     root.destroy()
-
 root.protocol("WM_DELETE_WINDOW", on_closing)
 
 
 def main(dt):
-    world.tiles.draw(canvas)
+    world.sectors.draw(canvas)
     
     for obj in world.physObjects:
         if obj:
@@ -92,7 +82,7 @@ def main(dt):
     
     for obj in world.objects:
         if obj != None:
-            obj.draw()
+            obj.draw(canvas)
 
 
 if __name__ == "__main__":
