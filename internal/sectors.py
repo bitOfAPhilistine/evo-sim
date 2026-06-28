@@ -14,6 +14,7 @@ class Sector:
     def __init__(self, nutrients: float):
         self.objects = SmartList()
         self.nutrients = nutrients
+        self.baseNutrients = nutrients
         self.shape = None
     
     def add(self, item):
@@ -42,7 +43,7 @@ class Sectors:
                             if 0 <= nx < self.width and 0 <= ny < self.height:
                                 neighbors.append(prevTiles[ny][nx].nutrients)
                     if neighbors:
-                        self.sectors[y][x] = Sector(sum(neighbors) / len(neighbors))
+                        self.get(Vector2(x, y)).nutrients = sum(neighbors) / len(neighbors)
     
     def get(self, pos: Vector2) -> Sector:
         if 0 <= pos.x < self.width and 0 <= pos.y < self.height:
@@ -66,9 +67,9 @@ class Sectors:
                     canvas.delete(sector.shape)
                 
                 rgb = (
-                    clamp(int((1 - sector.nutrients) * 255 * 2.5), 0, 255),
-                    clamp(int((1 - sector.nutrients) * 255 * 1.5), 0, 255),
-                    clamp(int((0.9 - sector.nutrients) * 255), 0, 255)
+                    clamp(int((1 - sector.nutrients) * 255), 0, 255),
+                    clamp(int((0.95 - sector.nutrients * 1.25) * 255), 0, 255),
+                    clamp(int((0.9 - sector.nutrients * 1.45) * 255), 0, 255)
                 )
 
                 sector.shape = canvas.create_rectangle(
@@ -77,3 +78,25 @@ class Sectors:
                     fill=f"#{rgb[0]:02x}{rgb[1]:02x}{rgb[2]:02x}",
                     outline=""
                 )
+    
+    def update(self, dt):
+        for y in range(self.height):
+            for x in range(self.width):
+                pos = Vector2(x, y)
+                if self.get(pos).nutrients < self.get(pos).baseNutrients:
+                    self.get(pos).nutrients += (self.get(pos).baseNutrients - self.get(pos).nutrients) * dt * 0.1
+                    self.get(pos).nutrients += (self.get(pos).nutrients - self.get(pos).baseNutrients) * dt * 0.01
+        
+        prevTiles = copy.deepcopy(self.sectors)
+        for y in range(self.height):
+            for x in range(self.width):
+                neighbors = []
+                for dy in [-1, 0, 1]:
+                    for dx in [-1, 0, 1]:
+                        if dx == 0 and dy == 0:
+                            continue
+                        nx, ny = x + dx, y + dy
+                        if 0 <= nx < self.width and 0 <= ny < self.height:
+                            neighbors.append(prevTiles[ny][nx].nutrients)
+                if neighbors:
+                    self.get(Vector2(x, y)).nutrients = (sum(neighbors) / len(neighbors) * dt * 0.1 + self.get(Vector2(x, y)).nutrients) / (1 + dt * 0.1)

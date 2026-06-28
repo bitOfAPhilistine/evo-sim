@@ -24,7 +24,7 @@ class GameObject:
 
         self.update_sector()
 
-    def draw(self, canvas):
+    def draw(self, canvas: Canvas):
         if not canvas.winfo_exists():
             return
         if self.shape is not None:
@@ -47,9 +47,9 @@ class GameObject:
             self.sectorPos = sectorPos
             self.sectorIndex = self.sectors.get(self.sectorPos).objects.add(self)
     
-    def delete(self):
-        if self.shape is not None and self.canvas.winfo_exists():
-            self.canvas.delete(self.shape)
+    def delete(self, canvas: Canvas):
+        if self.shape is not None and canvas.winfo_exists():
+            canvas.delete(self.shape)
             self.shape = None
         if self.sectorIndex is not None and self.sectorPos is not None:
             self.sectors.get(self.sectorPos).objects.remove(self.sectorIndex)
@@ -77,8 +77,8 @@ class PhysicsObject(GameObject):
         self.physObjects = physObjects
         self.physObjectsIndex = physObjects.add(self)
     
-    def delete(self):
-        super().delete()
+    def delete(self, canvas: Canvas):
+        super().delete(canvas)
         if self.physObjectsIndex is not None:
             self.physObjects.remove(self.physObjectsIndex)
 
@@ -106,7 +106,7 @@ class PhysicsObject(GameObject):
             self.velocity.y *= -1
             self.pos.y = max(self.radius, min(config.CANVAS_SIZE.y - self.radius, self.pos.y))
 
-    def update(self, dt):
+    def update(self, dt, canvas: Canvas):
         self.apply_force(self.velocity.scale(-1).scale(self.drag))
 
         sectorsToCheck = self.sectors.get_sectors_around(self.sectorPos)

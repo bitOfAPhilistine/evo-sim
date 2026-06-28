@@ -4,6 +4,7 @@ from internal.smartList import SmartList
 from internal.vector2 import Vector2
 from internal.objects import GameObject, PhysicsObject
 
+import random as rand
 import time
 import config
 
@@ -26,7 +27,18 @@ class W():
 
         self.objects: SmartList = SmartList()
         self.physObjects: SmartList = SmartList()   
-        self.sectors: Sectors = Sectors(3)
+        self.sectors: Sectors = Sectors(1)
+        self.plants: SmartList = SmartList()
+
+        # Add randomly placed/sized rocks
+        for _ in range(rand.randint(10, 25)):
+            GameObject(
+                sectors=self.sectors,
+                objects=self.objects,
+                pos=Vector2(rand.uniform(0, config.CANVAS_SIZE.x), rand.uniform(0, config.CANVAS_SIZE.y)),
+                radius=rand.uniform(5, 15),
+                color="gray"
+            )
 world = W()
 
 
@@ -61,7 +73,7 @@ def on_spacebar(event=None):
     
     for obj in world.objects:
         if obj != None:
-            obj.delete()
+            obj.delete(canvas)
 root.bind("<space>", on_spacebar)
 
 running = True
@@ -74,12 +86,17 @@ root.protocol("WM_DELETE_WINDOW", on_closing)
 
 
 def main(dt):
-    world.sectors.draw(canvas)
+    world.sectors.update(dt)
     
     for obj in world.physObjects:
         if obj:
             obj.update(dt)
+    for obj in world.plants:
+        if obj:
+            obj.update(dt, canvas)
     
+    world.sectors.draw(canvas)
+
     for obj in world.objects:
         if obj != None:
             obj.draw(canvas)
