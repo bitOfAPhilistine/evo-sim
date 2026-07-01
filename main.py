@@ -1,4 +1,5 @@
 from tkinter import Canvas, Tk, ttk, TclError
+from internal.plants import Plant
 from internal.sectors import Sectors
 from internal.smartList import SmartList
 from internal.vector2 import Vector2
@@ -38,6 +39,15 @@ class W():
                 pos=Vector2(rand.uniform(0, config.CANVAS_SIZE.x), rand.uniform(0, config.CANVAS_SIZE.y)),
                 radius=rand.uniform(5, 15),
                 color="gray"
+            )
+        
+        # Add randomly placed plants
+        for _ in range(rand.randint(10, 25)):
+            Plant(
+                sectors=self.sectors,
+                objects=self.objects,
+                plants=self.plants,
+                pos=Vector2(rand.uniform(0, config.CANVAS_SIZE.x), rand.uniform(0, config.CANVAS_SIZE.y))
             )
 world = W()
 
@@ -90,7 +100,7 @@ def main(dt):
     
     for obj in world.physObjects:
         if obj:
-            obj.update(dt)
+            obj.update(dt, canvas)
     for obj in world.plants:
         if obj:
             obj.update(dt, canvas)
