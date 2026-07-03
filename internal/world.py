@@ -100,3 +100,11 @@ class Sectors:
                             neighbors.append(prevTiles[ny][nx].nutrients)
                 if neighbors:
                     self.get(Vector2(x, y)).nutrients = (sum(neighbors) / len(neighbors) * dt * 0.1 + self.get(Vector2(x, y)).nutrients) / (1 + dt * 0.1)
+
+class World():
+    def __init__(self):
+        print("Initializing world...")
+
+        self.objects: SmartList = SmartList()
+        self.updateable: SmartList = SmartList()   
+        self.sectors: Sectors = Sectors(1)

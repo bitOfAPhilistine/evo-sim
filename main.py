@@ -1,6 +1,6 @@
 from tkinter import Canvas, Tk, ttk, TclError
 from internal.plants import Plant
-from internal.sectors import Sectors
+from internal.world import Sectors, World
 from internal.smartList import SmartList
 from internal.vector2 import Vector2
 from internal.objects import GameObject, PhysicsObject
@@ -22,69 +22,27 @@ frame.pack()
 canvas.pack()
 
 
-class W():
-    def __init__(self):
-        print("Initializing world...")
+world = World()
 
-        self.objects: SmartList = SmartList()
-        self.physObjects: SmartList = SmartList()   
-        self.sectors: Sectors = Sectors(1)
-        self.plants: SmartList = SmartList()
-
-        # Add randomly placed/sized rocks
-        for _ in range(rand.randint(10, 25)):
-            GameObject(
-                sectors=self.sectors,
-                objects=self.objects,
-                pos=Vector2(rand.uniform(0, config.CANVAS_SIZE.x), rand.uniform(0, config.CANVAS_SIZE.y)),
-                radius=rand.uniform(5, 15),
-                color="gray"
-            )
-        
-        # Add randomly placed plants
-        for _ in range(rand.randint(10, 25)):
-            Plant(
-                sectors=self.sectors,
-                objects=self.objects,
-                plants=self.plants,
-                pos=Vector2(rand.uniform(0, config.CANVAS_SIZE.x), rand.uniform(0, config.CANVAS_SIZE.y))
-            )
-world = W()
-
-
-# Create a basic object on left mouse click/drag and a physics object on right mouse click/drag, then delete all with spacebar
-def on_left_click(event):
-    obj = GameObject(
-        sectors=world.sectors,
-        objects=world.objects,
-        pos=Vector2(event.x, event.y),
-        radius=10,
-        color="white"
+# Add randomly placed/sized rocks
+for _ in range(rand.randint(10, 25)):
+    GameObject(
+        world=world,
+        pos=Vector2(rand.uniform(0, config.CANVAS_SIZE.x), rand.uniform(0, config.CANVAS_SIZE.y)),
+        radius=rand.uniform(5, 15),
+        color="gray"
     )
-canvas.bind("<Button-1>", on_left_click)
-canvas.bind("<B1-Motion>", on_left_click)
 
-def on_right_click(event):
-    obj = PhysicsObject(
-        sectors=world.sectors,
-        objects=world.objects,
-        physObjects=world.physObjects,
-        pos=Vector2(event.x, event.y),
-        radius=10,
-        color="red",
-        mass=1.0,
-        drag=0.1
+# Add randomly placed plants
+for _ in range(rand.randint(10, 25)):
+    Plant(
+        world=world,
+        pos=Vector2(rand.uniform(0, config.CANVAS_SIZE.x), rand.uniform(0, config.CANVAS_SIZE.y)),
+        maxRadius=rand.uniform(1.0, 50.0),
+        growthSpeed=rand.uniform(0.0, 2.0),
+        rootDepth=rand.uniform(0.0, 1.0),
+        seedSpeed=rand.uniform(0.0, 10.0)
     )
-canvas.bind("<Button-3>", on_right_click)
-canvas.bind("<B3-Motion>", on_right_click)
-
-def on_spacebar(event=None):
-    print("Deleting all objects")
-    
-    for obj in world.objects:
-        if obj != None:
-            obj.delete(canvas)
-root.bind("<space>", on_spacebar)
 
 running = True
 def on_closing(event=None):
@@ -98,10 +56,7 @@ root.protocol("WM_DELETE_WINDOW", on_closing)
 def main(dt):
     world.sectors.update(dt)
     
-    for obj in world.physObjects:
-        if obj:
-            obj.update(dt, canvas)
-    for obj in world.plants:
+    for obj in world.updateable:
         if obj:
             obj.update(dt, canvas)
     
@@ -125,6 +80,6 @@ if __name__ == "__main__":
             break
 
         ft = time.time() - t
-        print(f"Frame time: {ft:.4f}, Objects: {len(world.objects)}, PhysObjects: {len(world.physObjects)}, Lagging: {ft > 1/60}")
+        print(f"Frame time: {ft:.4f}, Objects: {len(world.objects)}, Updateable: {len(world.updateable)}, Lagging: {ft > 1/60}")
         time.sleep(max(0, 1/60 - ft))
         dt = max(1/60, ft)

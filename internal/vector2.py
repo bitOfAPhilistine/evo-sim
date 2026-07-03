@@ -48,3 +48,6 @@ class Vector2:
 
     def scale(self, factor):
         return Vector2(self.x * factor, self.y * factor)
+    
+    def copy(self):
+        return Vector2(self.x, self.y)

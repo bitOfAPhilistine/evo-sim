@@ -1,16 +1,15 @@
 from tkinter import Canvas
 from internal.vector2 import Vector2
 from internal.smartList import SmartList
-from internal.sectors import Sectors
+from internal.world import Sectors, World, clamp
 
 import random, config
 
 
 # Base object with basic properties
 class GameObject:
-    def __init__(self, sectors: Sectors, objects: SmartList, pos: Vector2, radius: float, color: str | tuple[int, int, int]):
-        self.sectors = sectors
-        self.objects = objects
+    def __init__(self, world: World, pos: Vector2, radius: float, color: str | tuple[int, int, int]):
+        self.world = world
         self.sectorPos = None
         self.pos = pos
         self.radius = radius
@@ -19,7 +18,7 @@ class GameObject:
         else:
             self.color = color
         self.shape = None
-        self.objectIndex = objects.add(self)
+        self.objectIndex = world.objects.add(self)
         self.sectorIndex = None
 
         self.update_sector()
@@ -38,49 +37,46 @@ class GameObject:
     
     def update_sector(self):
         sectorPos = Vector2(
-            int(self.pos.x // self.sectors.sectorSize.x),
-            int(self.pos.y // self.sectors.sectorSize.y)
+            clamp(int(self.pos.x // self.world.sectors.sectorSize.x), 0, self.world.sectors.width - 1),
+            clamp(int(self.pos.y // self.world.sectors.sectorSize.y), 0, self.world.sectors.height - 1)
         )
         if self.sectorPos is None or self.sectorIndex is None or self.sectorPos != sectorPos:
             if self.sectorPos is not None:
-                self.sectors.get(self.sectorPos).objects.remove(self.sectorIndex)
+                self.world.sectors.get(self.sectorPos).objects.remove(self.sectorIndex)
             self.sectorPos = sectorPos
-            self.sectorIndex = self.sectors.get(self.sectorPos).objects.add(self)
+            self.sectorIndex = self.world.sectors.get(self.sectorPos).objects.add(self)
     
     def delete(self, canvas: Canvas):
         if self.shape is not None and canvas.winfo_exists():
             canvas.delete(self.shape)
             self.shape = None
         if self.sectorIndex is not None and self.sectorPos is not None:
-            self.sectors.get(self.sectorPos).objects.remove(self.sectorIndex)
+            self.world.sectors.get(self.sectorPos).objects.remove(self.sectorIndex)
         if self.objectIndex is not None:
-            self.objects.remove(self.objectIndex)
+            self.world.objects.remove(self.objectIndex)
 
 
 # Physics object
 class PhysicsObject(GameObject):
     def __init__(self, 
-                    sectors: Sectors, 
-                    objects: SmartList, 
-                    physObjects: SmartList, 
+                    world: World,
                     pos: Vector2, 
                     radius: float, 
                     color: str | tuple[int, int, int], 
                     mass: float, 
                     drag: float
                 ):
-        super().__init__(sectors, objects, pos, radius, color)
+        super().__init__(world, pos, radius, color)
         self.mass = mass
         self.drag = drag
         self.velocity = Vector2(0, 0)
         self.acceleration = Vector2(0, 0)
-        self.physObjects = physObjects
-        self.physObjectsIndex = physObjects.add(self)
+        self.updateableIndex = world.updateable.add(self)
     
     def delete(self, canvas: Canvas):
         super().delete(canvas)
-        if self.physObjectsIndex is not None:
-            self.physObjects.remove(self.physObjectsIndex)
+        if self.updateableIndex is not None:
+            self.world.updateable.remove(self.updateableIndex)
 
     def apply_force(self, force: Vector2):
         self.acceleration += force / self.mass
@@ -109,7 +105,7 @@ class PhysicsObject(GameObject):
     def update(self, dt, canvas: Canvas):
         self.apply_force(self.velocity.scale(-1).scale(self.drag))
 
-        sectorsToCheck = self.sectors.get_sectors_around(self.sectorPos)
+        sectorsToCheck = self.world.sectors.get_sectors_around(self.sectorPos)
         for sector in sectorsToCheck:
             objects = sector.objects
             for obj in objects:
