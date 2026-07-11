@@ -17,6 +17,11 @@ class Sector:
         self.baseNutrients = nutrients
         self.shape = None
     
+    def __repr__(self):
+        return f'''Sector:
+    Nutrients: {self.nutrients}
+    Base Nutrients: {self.baseNutrients}'''
+    
     def add(self, item):
         return self.objects.add(item)
     
@@ -103,8 +108,6 @@ class Sectors:
 
 class World():
     def __init__(self):
-        print("Initializing world...")
-
         self.objects: SmartList = SmartList()
         self.updateable: SmartList = SmartList()   
         self.sectors: Sectors = Sectors(1)

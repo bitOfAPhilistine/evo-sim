@@ -21,28 +21,22 @@ canvas = Canvas(frame, width=config.CANVAS_SIZE.x, height=config.CANVAS_SIZE.y, 
 frame.pack()
 canvas.pack()
 
+def initialize():
+    print("Initializing world...")
+    global world
+    world = World()
 
-world = World()
-
-# Add randomly placed/sized rocks
-for _ in range(rand.randint(10, 25)):
-    GameObject(
-        world=world,
-        pos=Vector2(rand.uniform(0, config.CANVAS_SIZE.x), rand.uniform(0, config.CANVAS_SIZE.y)),
-        radius=rand.uniform(5, 15),
-        color="gray"
-    )
-
-# Add randomly placed plants
-for _ in range(rand.randint(10, 25)):
-    Plant(
-        world=world,
-        pos=Vector2(rand.uniform(0, config.CANVAS_SIZE.x), rand.uniform(0, config.CANVAS_SIZE.y)),
-        maxRadius=rand.uniform(1.0, 50.0),
-        growthSpeed=rand.uniform(0.0, 2.0),
-        rootDepth=rand.uniform(0.0, 1.0),
-        seedSpeed=rand.uniform(0.0, 10.0)
-    )
+    # Add randomly placed plants
+    for _ in range(rand.randint(10, 25)):
+        Plant(
+            world=world,
+            pos=Vector2(rand.uniform(0, config.CANVAS_SIZE.x), rand.uniform(0, config.CANVAS_SIZE.y)),
+            maxRadius=rand.uniform(1.0, 50.0),
+            growthSpeed=rand.uniform(0.0, 2.0),
+            rootDepth=rand.uniform(0.0, 1.0),
+            seedSpeed=rand.uniform(0.0, 100.0),
+            lifespan=rand.uniform(30.0, 120.0)
+        )
 
 running = True
 def on_closing(event=None):
@@ -53,7 +47,23 @@ def on_closing(event=None):
 root.protocol("WM_DELETE_WINDOW", on_closing)
 
 
+# On click, check for an object at the clicked position and print its details
+def on_click(event):
+    sectors = world.sectors.get_sectors_around(Vector2(event.x // config.SECTOR_SIZE.x, event.y // config.SECTOR_SIZE.y))
+    for sector in sectors:
+        for obj in sector.objects:
+            if obj and (obj.pos - Vector2(event.x, event.y)).magnitude() <= obj.radius:
+                print(f"Clicked on object: {obj}")
+                return
+    
+    print(f"Clicked on: {world.sectors.get(Vector2(event.x // config.SECTOR_SIZE.x, event.y // config.SECTOR_SIZE.y))}")
+canvas.bind("<Button-1>", on_click)
+
 def main(dt):
+    if len(world.objects) == 0:
+        print("Mass extinction event! Reinitializing world...")
+        initialize()
+
     world.sectors.update(dt)
     
     for obj in world.updateable:
@@ -69,6 +79,7 @@ def main(dt):
 
 if __name__ == "__main__":
     dt = 1/60
+    initialize()
     while running:
         t = time.time()
 
@@ -80,6 +91,5 @@ if __name__ == "__main__":
             break
 
         ft = time.time() - t
-        print(f"Frame time: {ft:.4f}, Objects: {len(world.objects)}, Updateable: {len(world.updateable)}, Lagging: {ft > 1/60}")
         time.sleep(max(0, 1/60 - ft))
         dt = max(1/60, ft)

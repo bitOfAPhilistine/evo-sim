@@ -82,14 +82,15 @@ class PhysicsObject(GameObject):
         self.acceleration += force / self.mass
     
     def collide(self, other, givenNormal=None):
-        if self.pos.distance_to(other.pos) < self.radius + other.radius:
+        totalRadius = self.radius + other.radius
+        if self.pos.distance_to(other.pos) < totalRadius:
             # print(f"Colliding {self} with {other}")
             normal = (self.pos - other.pos).normalize() if givenNormal is None else givenNormal
 
             if normal == Vector2(0, 0):
                 normal = Vector2(random.uniform(-1, 1), random.uniform(-1, 1)).normalize()
 
-            self.apply_force(normal.scale(self.radius + other.radius).scale(self.mass))
+            self.apply_force(normal.scale(totalRadius - (self.pos - other.pos).magnitude()).scale(self.mass))
 
             if isinstance(other, PhysicsObject) and givenNormal is None:
                 other.collide(self, normal.scale(-1))
