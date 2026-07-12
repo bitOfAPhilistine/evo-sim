@@ -1,4 +1,5 @@
 from tkinter import Canvas, Tk, ttk, TclError
+from internal.color import Color
 from internal.plants import Plant
 from internal.world import Sectors, World
 from internal.smartList import SmartList
@@ -31,8 +32,9 @@ def initialize():
         Plant(
             world=world,
             pos=Vector2(rand.uniform(0, config.CANVAS_SIZE.x), rand.uniform(0, config.CANVAS_SIZE.y)),
-            maxRadius=rand.uniform(1.0, 50.0),
-            growthSpeed=rand.uniform(0.0, 2.0),
+            color=Color(rand.randint(0, 255), rand.randint(0, 255), rand.randint(0, 255)),
+            maxRadius=rand.uniform(1.0, 100.0),
+            growthSpeed=rand.uniform(1.0, 5.0),
             rootDepth=rand.uniform(0.0, 1.0),
             seedSpeed=rand.uniform(0.0, 100.0),
             lifespan=rand.uniform(30.0, 120.0)
@@ -53,7 +55,7 @@ def on_click(event):
     for sector in sectors:
         for obj in sector.objects:
             if obj and (obj.pos - Vector2(event.x, event.y)).magnitude() <= obj.radius:
-                print(f"Clicked on object: {obj}")
+                print(f"Clicked on: {obj}")
                 return
     
     print(f"Clicked on: {world.sectors.get(Vector2(event.x // config.SECTOR_SIZE.x, event.y // config.SECTOR_SIZE.y))}")
@@ -68,13 +70,21 @@ def main(dt):
     
     for obj in world.updateable:
         if obj:
-            obj.update(dt, canvas)
+            try:
+                obj.update(dt, canvas)
+            except Exception as e:
+                print(f"Error updating object {obj}: {e}")
+                obj.delete(canvas)
     
     world.sectors.draw(canvas)
 
     for obj in world.objects:
         if obj != None:
-            obj.draw(canvas)
+            try:
+                obj.draw(canvas)
+            except Exception as e:
+                print(f"Error drawing object {obj}: {e}")
+                obj.delete(canvas)
 
 
 if __name__ == "__main__":

@@ -1,22 +1,23 @@
 from tkinter import Canvas
 from internal.vector2 import Vector2
 from internal.smartList import SmartList
-from internal.world import Sectors, World, clamp
+from internal.world import Sectors, World
+from internal.color import Color
+from internal.clamp import clamp
 
-import random, config
+import random, math, config
 
 
 # Base object with basic properties
 class GameObject:
-    def __init__(self, world: World, pos: Vector2, radius: float, color: str | tuple[int, int, int]):
+    def __init__(self, world: World, pos: Vector2, radius: float, color: Color, strokeColor: Color = Color(0, 0, 0), strokeWidth: int = 1):
         self.world = world
         self.sectorPos = None
         self.pos = pos
         self.radius = radius
-        if isinstance(color, tuple):
-            self.color = f"#{color[0]:02x}{color[1]:02x}{color[2]:02x}"
-        else:
-            self.color = color
+        self.color = color
+        self.strokeColor = strokeColor
+        self.strokeWidth = strokeWidth
         self.shape = None
         self.objectIndex = world.objects.add(self)
         self.sectorIndex = None
@@ -30,9 +31,11 @@ class GameObject:
             canvas.delete(self.shape)
         
         self.shape = canvas.create_oval(
-            self.pos.x - self.radius, self.pos.y - self.radius,
-            self.pos.x + self.radius, self.pos.y + self.radius,
-            fill=self.color
+            self.pos.x - (self.radius - math.ceil(self.strokeWidth / 2)), self.pos.y - (self.radius - math.ceil(self.strokeWidth / 2)),
+            self.pos.x + (self.radius - math.ceil(self.strokeWidth / 2)), self.pos.y + (self.radius - math.ceil(self.strokeWidth / 2)),
+            fill=self.color.to_hex(),
+            outline=self.strokeColor.to_hex(),
+            width=self.strokeWidth
         )
     
     def update_sector(self):
@@ -62,11 +65,13 @@ class PhysicsObject(GameObject):
                     world: World,
                     pos: Vector2, 
                     radius: float, 
-                    color: str | tuple[int, int, int], 
+                    color: str | Color,
                     mass: float, 
-                    drag: float
+                    drag: float,
+                    strokeColor: str | Color = Color(0, 0, 0),
+                    strokeWidth: int = 1
                 ):
-        super().__init__(world, pos, radius, color)
+        super().__init__(world, pos, radius, color, strokeColor, strokeWidth)
         self.mass = mass
         self.drag = drag
         self.velocity = Vector2(0, 0)

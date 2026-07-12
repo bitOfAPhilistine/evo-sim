@@ -1,13 +1,10 @@
 from internal.vector2 import Vector2
 from internal.smartList import SmartList
+from internal.clamp import clamp
 
 import random as rand
 import config
 import copy
-
-
-def clamp(value, min_value, max_value):
-    return max(min_value, min(value, max_value))
 
 
 class Sector:
