@@ -22,26 +22,30 @@ canvas = Canvas(frame, width=config.CANVAS_SIZE.x, height=config.CANVAS_SIZE.y, 
 frame.pack()
 canvas.pack()
 
+monitoring = None
+def clear_monitoring():
+    global monitoring
+    if monitoring != None:
+        print(monitoring)
+        monitoring = None
+
 def initialize():
     print("Initializing world...")
     global world
     world = World()
 
+    clear_monitoring()
+
     # Add randomly placed plants
     for _ in range(rand.randint(10, 25)):
         Plant(
             world=world,
-            pos=Vector2(rand.uniform(0, config.CANVAS_SIZE.x), rand.uniform(0, config.CANVAS_SIZE.y)),
-            color=Color(rand.randint(0, 255), rand.randint(0, 255), rand.randint(0, 255)),
-            maxRadius=rand.uniform(1.0, 100.0),
-            growthSpeed=rand.uniform(1.0, 5.0),
-            rootDepth=rand.uniform(0.0, 1.0),
-            seedSpeed=rand.uniform(0.0, 100.0),
-            lifespan=rand.uniform(30.0, 120.0)
+            pos=Vector2(rand.uniform(0, config.CANVAS_SIZE.x), rand.uniform(0, config.CANVAS_SIZE.y))
         )
 
 running = True
 def on_closing(event=None):
+    clear_monitoring()
     print("Closing window")
     global running
     running = False
@@ -49,8 +53,10 @@ def on_closing(event=None):
 root.protocol("WM_DELETE_WINDOW", on_closing)
 
 
-# On click, check for an object at the clicked position and print its details
-def on_click(event):
+# On left click, check for an object at the clicked position and print its details
+def on_left_click(event):
+    clear_monitoring()
+
     sectors = world.sectors.get_sectors_around(Vector2(event.x // config.SECTOR_SIZE.x, event.y // config.SECTOR_SIZE.y))
     for sector in sectors:
         for obj in sector.objects:
@@ -59,11 +65,38 @@ def on_click(event):
                 return
     
     print(f"Clicked on: {world.sectors.get(Vector2(event.x // config.SECTOR_SIZE.x, event.y // config.SECTOR_SIZE.y))}")
-canvas.bind("<Button-1>", on_click)
+canvas.bind("<Button-1>", on_left_click)
+
+
+# On right click, mark an object to be monitored
+def on_right_click(event):
+    global monitoring
+    clear_monitoring()
+    sectors = world.sectors.get_sectors_around(Vector2(event.x // config.SECTOR_SIZE.x, event.y // config.SECTOR_SIZE.y))
+
+    for sector in sectors:
+        for obj in sector.objects:
+            if obj and (obj.pos - Vector2(event.x, event.y)).magnitude() <= obj.radius:
+                monitoring = obj
+
+                print(f"Now monitoring:")
+                return
+    
+    monitoring = world.sectors.get(Vector2(event.x // config.SECTOR_SIZE.x, event.y // config.SECTOR_SIZE.y))
+    print(f"Now monitoring:")
+canvas.bind("<Button-3>", on_right_click)
+
+
+# On r, reinitialize the world
+def on_r(event):
+    print("Manual restart, resetting world...")
+    initialize()
+root.bind("<r>", on_r)
+
 
 def main(dt):
     if len(world.objects) == 0:
-        print("Mass extinction event! Reinitializing world...")
+        print("Mass extinction event, resetting world...")
         initialize()
 
     world.sectors.update(dt)
@@ -73,7 +106,7 @@ def main(dt):
             try:
                 obj.update(dt, canvas)
             except Exception as e:
-                print(f"Error updating object {obj}: {e}")
+                print(f"Error updating object {obj}\n{e}")
                 obj.delete(canvas)
     
     world.sectors.draw(canvas)
@@ -83,8 +116,14 @@ def main(dt):
             try:
                 obj.draw(canvas)
             except Exception as e:
-                print(f"Error drawing object {obj}: {e}")
+                print(f"Error drawing object {obj}\n{e}")
                 obj.delete(canvas)
+    
+    if monitoring != None:
+        s = str(monitoring)
+        print(s)
+        for _ in s.split('\n'):
+            print(config.LINE_UP, end=config.LINE_CLEAR)
 
 
 if __name__ == "__main__":

@@ -4,38 +4,29 @@ from internal.vector2 import Vector2
 from internal.smartList import SmartList
 from internal.world import Sectors, World
 from internal.objects import GameObject, PhysicsObject
+from internal.genome import Genome
 from internal.color import Color
-from internal.clamp import clamp
+from internal.funcs import clamp
 
 import random as rand
 import config
+import copy
 
-
-def randcurve(min: float, max: float, weight: int = 2) -> float:
-    """Returns a random float between min and max, with a curve towards the middle"""
-    total = 0
-    for _ in range(weight):
-        total += rand.uniform(min, max)
-    return total / weight
 
 class Plant(GameObject):
-    def __init__(self, world: World, pos: Vector2,
-                color: Color,
-                maxRadius: float,
-                growthSpeed: float,
-                rootDepth: float,
-                seedSpeed: float,
-                lifespan: float):
+    def __init__(self, world: World, pos: Vector2, genome: Genome = None):
         
-        super().__init__(world, pos, maxRadius * config.SEED_SIZE_FACTOR, color, Color(255, 255, 255), 0)
+        self.genome = Genome() if genome is None else genome
+
+        super().__init__(world, pos, self.genome.maxRadius * config.SEED_SIZE_FACTOR, self.genome.color, Color(255, 255, 255), 0)
 
         self.updateableIndex = world.updateable.add(self)
-        self.baseColor = color
-        self.maxRadius = clamp(maxRadius, 1.0, 100.0)
-        self.growthSpeed = clamp(growthSpeed, 1.0, 5.0)
-        self.rootDepth = clamp(rootDepth, 0.0, 1.0)
-        self.seedSpeed = clamp(seedSpeed, 0.0, 100.0)
-        self.lifespan = clamp(lifespan, 30.0, 120.0)
+        self.baseColor = self.genome.color
+        self.maxRadius = clamp(self.genome.maxRadius, config.MIN_PLANT_RADIUS, config.MAX_PLANT_RADIUS)
+        self.growthSpeed = clamp(self.genome.growthSpeed, 1.0, config.MAX_GROWTH_SPEED)
+        self.rootDepth = clamp(self.genome.rootDepth, 0.0, 1.0)
+        self.seedSpeed = clamp(self.genome.seedSpeed, 0.0, config.MAX_SEED_SPEED)
+        self.lifespan = clamp(self.genome.lifespan, config.MIN_LIFESPAN, config.MAX_LIFESPAN)
         self.lifeLeft = self.lifespan
         self.health = 100.0
         self.nutrients = 0.0
@@ -48,6 +39,7 @@ class Plant(GameObject):
     def __repr__(self):
         return f'''Plant:
     Position: {self.pos}
+    Genome: {self.genome.__hash__()}
     Color: {self.baseColor}
     Radius: {self.radius}
     Max Radius: {self.maxRadius}
@@ -104,35 +96,8 @@ class Plant(GameObject):
                     world=self.world,
                     pos=self.pos + offset,
                     radius=self.seedSize,
-                    color=self.baseColor,
-                    maxRadius=self.maxRadius,
-                    growthSpeed=self.growthSpeed,
-                    rootDepth=self.rootDepth,
-                    seedSpeed=self.seedSpeed,
-                    lifespan=self.lifespan
+                    genome=self.genome
                 )
-
-                if rand.random() < config.MUTATION_CHANCE:
-                    mutationTrait = rand.randint(0, 7)
-                    mutationAmount = randcurve(1.0 - config.MUTATION_FACTOR, 1.0 + config.MUTATION_FACTOR, config.MUTATION_CENTER_WEIGHTING)
-
-                    match mutationTrait:
-                        case 0:
-                            seed.baseColor.r = int(seed.baseColor.r * mutationAmount)
-                        case 1:
-                            seed.baseColor.g = int(seed.baseColor.g * mutationAmount)
-                        case 2:
-                            seed.baseColor.b = int(seed.baseColor.b * mutationAmount)
-                        case 3:
-                            seed.maxRadius = seed.maxRadius * mutationAmount
-                        case 4:
-                            seed.growthSpeed = seed.growthSpeed * mutationAmount
-                        case 5:
-                            seed.rootDepth = seed.rootDepth * mutationAmount
-                        case 6:
-                            seed.seedSpeed = seed.seedSpeed * mutationAmount
-                        case 7:
-                            seed.lifespan = seed.lifespan * mutationAmount
 
                 seed.apply_force(offset.normalize().scale(self.seedForce))
 
@@ -144,50 +109,33 @@ class Plant(GameObject):
 
 
 class Seed(PhysicsObject):
-    def __init__(self, world: World, pos: Vector2,
-                radius: float,
-                color: Color,
-                maxRadius: float,
-                growthSpeed: float,
-                rootDepth: float,
-                seedSpeed: float,
-                lifespan: float):
-        
+    def __init__(self, world: World, pos: Vector2, radius: float, genome: Genome):
         super().__init__(world, pos, radius, Color(145, 45, 30), math.pi * radius ** 2, config.SEED_DRAG)
 
-        self.baseColor = color
-        self.maxRadius = maxRadius
-        self.growthSpeed = growthSpeed
-        self.rootDepth = rootDepth
-        self.seedSpeed = seedSpeed
-        self.lifespan = lifespan
+        self.isMutant = rand.random() < config.MUTATION_CHANCE
+        self.genome: Genome = None
+        if self.isMutant:
+            self.genome = genome.mutate()
+        else:
+            self.genome = genome
+        
+        if self.genome == None:
+            raise Exception("seed lacks genome")
     
     def __repr__(self):
         return f'''Seed:
     Position: {self.pos}
     Radius: {self.radius}
-    Color: {self.baseColor}
-    Max Radius: {self.maxRadius}
-    Growth Speed: {self.growthSpeed}
-    Root Depth: {self.rootDepth}
-    Seed Speed: {self.seedSpeed}'''
+    Is Mutant: {self.isMutant}
+    Genome: {self.genome.__hash__()}'''
 
     def update(self, dt, canvas: Canvas):
         super().update(dt, canvas)
 
-        try:
-            if self.velocity.magnitude() <= 0.1:
-                Plant(
-                    world=self.world,
-                    pos=self.pos.copy(),
-                    color=self.baseColor,
-                    maxRadius=self.maxRadius,
-                    growthSpeed=self.growthSpeed,
-                    rootDepth=self.rootDepth,
-                    seedSpeed=self.seedSpeed,
-                    lifespan=self.lifespan
-                )
-                self.delete(canvas)
-        except OverflowError:
-            print(f"Overflow error in seed update: {self}")
+        if self.velocity.magnitude() <= 0.5:
+            Plant(
+                world=self.world,
+                pos=self.pos.copy(),
+                genome=self.genome
+            )
             self.delete(canvas)

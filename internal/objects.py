@@ -3,7 +3,7 @@ from internal.vector2 import Vector2
 from internal.smartList import SmartList
 from internal.world import Sectors, World
 from internal.color import Color
-from internal.clamp import clamp
+from internal.funcs import clamp
 
 import random, math, config
 

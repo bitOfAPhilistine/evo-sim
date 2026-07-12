@@ -1,6 +1,8 @@
 from internal.vector2 import Vector2
 from internal.smartList import SmartList
-from internal.clamp import clamp
+from internal.genome import Genome
+from internal.color import Color
+from internal.funcs import clamp
 
 import random as rand
 import config
@@ -26,13 +28,13 @@ class Sector:
         return self.objects.remove(index)
 
 class Sectors:
-    def __init__(self, blurLevel: int):
+    def __init__(self):
         self.width = config.CANVAS_SIZE.x // config.SECTOR_SIZE.x
         self.height = config.CANVAS_SIZE.y // config.SECTOR_SIZE.y
         self.sectorSize = config.SECTOR_SIZE
         self.sectors = [[Sector(rand.random()) for _ in range(self.width)] for _ in range(self.height)]
 
-        for _ in range(blurLevel):
+        for _ in range(config.SECTOR_BLUR_LEVEL):
             prevTiles = copy.deepcopy(self.sectors)
             for y in range(self.height):
                 for x in range(self.width):
@@ -68,27 +70,27 @@ class Sectors:
                 if sector.shape is not None:
                     canvas.delete(sector.shape)
                 
-                rgb = (
-                    clamp(int((1 - sector.nutrients) * 255), 0, 255),
-                    clamp(int((0.95 - sector.nutrients * 1.25) * 255), 0, 255),
-                    clamp(int((0.9 - sector.nutrients * 1.45) * 255), 0, 255)
+                rgb = Color(
+                    int((1 - sector.nutrients) * 255),
+                    int((0.95 - sector.nutrients * 1.25) * 255),
+                    int((0.9 - sector.nutrients * 1.45) * 255)
                 )
 
                 sector.shape = canvas.create_rectangle(
                     x * self.sectorSize.x, y * self.sectorSize.y,
                     (x + 1) * self.sectorSize.x, (y + 1) * self.sectorSize.y,
-                    fill=f"#{rgb[0]:02x}{rgb[1]:02x}{rgb[2]:02x}",
+                    fill=rgb.to_hex(),
                     outline=""
                 )
     
     def update(self, dt):
         for y in range(self.height):
             for x in range(self.width):
-                pos = Vector2(x, y)
-                if self.get(pos).nutrients < self.get(pos).baseNutrients:
-                    self.get(pos).nutrients += (self.get(pos).baseNutrients - self.get(pos).nutrients) * dt * 0.1
-                    self.get(pos).nutrients += (self.get(pos).nutrients - self.get(pos).baseNutrients) * dt * 0.01
-        
+                sector = self.get(Vector2(x, y))
+                if sector.nutrients < sector.baseNutrients:
+                    sector.nutrients += (sector.baseNutrients - sector.nutrients) * dt * 0.1
+                    sector.nutrients += (sector.nutrients - sector.baseNutrients) * dt * 0.01
+
         prevTiles = copy.deepcopy(self.sectors)
         for y in range(self.height):
             for x in range(self.width):
@@ -107,4 +109,8 @@ class World():
     def __init__(self):
         self.objects: SmartList = SmartList()
         self.updateable: SmartList = SmartList()   
-        self.sectors: Sectors = Sectors(1)
+        self.sectors: Sectors = Sectors()
+        self.species: list = []
+    
+    def create_species(self, genome: Genome) -> int:
+        self.species.append(genome)
