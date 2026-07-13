@@ -123,7 +123,7 @@ def main(dt):
 
 
 if __name__ == "__main__":
-    dt = 1/60
+    dt = config.TARGET_FRAMERATE
     initialize()
     while running:
         t = time.time()
@@ -136,5 +136,5 @@ if __name__ == "__main__":
             break
 
         ft = time.time() - t
-        time.sleep(max(0, 1/60 - ft))
-        dt = max(1/60, ft)
+        time.sleep(max(0, config.TARGET_FRAMERATE - ft))
+        dt = max(config.TARGET_FRAMERATE, ft)

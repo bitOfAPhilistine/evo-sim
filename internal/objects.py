@@ -15,6 +15,7 @@ class GameObject:
         self.sectorPos = None
         self.pos = pos
         self.radius = radius
+        self.area = self.radius ** 2 * math.pi
         self.color = color
         self.strokeColor = strokeColor
         self.strokeWidth = strokeWidth
@@ -24,8 +25,11 @@ class GameObject:
 
         self.update_sector()
     
-    def area(self):
-        return self.radius ** 2 * math.pi
+    def __setattr__(self, name, value):
+        object.__setattr__(self, name, value)
+
+        if name == 'radius':
+            object.__setattr__(self, 'area', self.radius ** 2 * math.pi)
 
     def draw(self, canvas: Canvas):
         if not canvas.winfo_exists():

@@ -71,15 +71,15 @@ class Sectors:
         return sectors
     
     @functools.cache
-    def get_overlap(self, pos: HashVector2, radius: float, precision: int = 6) -> list[tuple[HashVector2, float]]:
+    def get_overlap(self, pos: HashVector2, radius: float, precision: int = 8) -> tuple[tuple[HashVector2, float]]:
         area = radius ** 2 * math.pi
         bounds = (Vector2(pos.x - radius, pos.y - radius), Vector2(pos.x + radius, pos.y + radius))
-        sectors = [[Vector2(x, y) for y in range(bounds[0].y // self.sectorSize.y, bounds[1].y // self.sectorSize.y + 1)] for x in range(bounds[0].x // self.sectorSize.x, bounds[1].x // self.sectorSize.x + 1)]
+        sectors = [[Vector2(x, y) for y in range(int(bounds[0].y) // self.sectorSize.y, int(bounds[1].y) // self.sectorSize.y + 1)] for x in range(int(bounds[0].x) // self.sectorSize.x, int(bounds[1].x) // self.sectorSize.x + 1)]
 
         if len(sectors) == 1:
-            return [(sectors[0][0], 1.0)]
+            return ((sectors[0][0], 1.0))
         
-        dividedGridSizes = [4 ** i for i in range(1, precision + 2)]
+        dividedGridSizes = tuple(4 ** i for i in range(1, precision + 2))
         overlapping = []
         for col in sectors:
             for sector in col:
@@ -90,13 +90,13 @@ class Sectors:
                     [HashVector2(sectorBounds[0].x, sectorBounds[1].y), False],
                     [HashVector2(sectorBounds[1].x, sectorBounds[1].y), False]
                 ]
-                sectorCorners = list(map(lambda x: [x[0], check_point_circle(x[0].hash(), pos.hash(), radius)], sectorCorners))
+                sectorCorners = tuple(map(lambda x: (x[0], check_point_circle(x[0].hash(), pos.hash(), radius)), sectorCorners))
 
                 overlap = grid_border_search(sectorCorners, pos, radius, dividedGridSizes)
                 if overlap > 0.0:
                     overlapping.append((sector, (overlap * self.sectorArea) / area))
         
-        return overlapping
+        return tuple(overlapping)
     
     def draw(self, canvas):
         for y in range(self.height):
