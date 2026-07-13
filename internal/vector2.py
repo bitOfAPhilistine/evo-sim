@@ -1,23 +1,47 @@
 import math
 
 class Vector2:
-    def __init__(self, x, y) -> None:
-        self.x, self.y = x, y
+    def __init__(self, x: float | int, y: float | int = None):
+        if y != None:
+            self.x, self.y = x, y
+        else:
+            if isinstance(x, tuple):
+                self.x, self.y = x[0], x[1]
+            else:
+                self.x, self.y = x
 
     def __eq__(self, other) -> bool:
         return self.x == other.x and self.y == other.y
-
-    def __ne__(self, other) -> bool:
-        return not self.__eq__(other)
+    
+    def __gt__(self, other) -> bool:
+        if isinstance(other, Vector2):
+            return self.x > other.x and self.y > other.y
+        if isinstance(other, (int, float)):
+            return self.magnitude() > other
+    
+    def __lt__(self, other) -> bool:
+        if isinstance(other, Vector2):
+            return self.x < other.x and self.y < other.y
+        if isinstance(other, (int, float)):
+            return self.magnitude() < other
 
     def __add__(self, other):
-        return Vector2(self.x + other.x, self.y + other.y)
+        if isinstance(other, Vector2):
+            return Vector2(self.x + other.x, self.y + other.y)
+        if isinstance(other, (int, float)):
+            return Vector2(self.x + other, self.y + other)
 
     def __sub__(self, other):
-        return Vector2(self.x - other.x, self.y - other.y)
+        if isinstance(other, Vector2):
+            return Vector2(self.x - other.x, self.y - other.y)
+        if isinstance(other, (int, float)):
+            return Vector2(self.x - other, self.y - other)
 
     def __mul__(self, other):
-        return Vector2(self.x * other.x, self.y * other.y)
+        if isinstance(other, Vector2):
+            return Vector2(self.x * other.x, self.y * other.y)
+        if isinstance(other, (int, float)):
+            return Vector2(self.x * other, self.y * other)
 
     def __truediv__(self, other):
         if isinstance(other, Vector2):
@@ -26,22 +50,23 @@ class Vector2:
             return Vector2(self.x / other, self.y / other)
 
     def __repr__(self) -> str:
-        return f"({self.x}, {self.y})"
+        return f"({self.x:.2f}, {self.y:.2f})"
+    
+    def __iter__(self):
+        yield self.x
+        yield self.y
 
     def magnitude(self):
         return math.sqrt(self.x**2 + self.y**2)
 
     def normalize(self):
-        if self == Vector2(0, 0):
-            return Vector2(0, 0)
         mag = self.magnitude()
+        if mag == 0.0:
+            return Vector2(0, 0)
         return Vector2(self.x / mag, self.y / mag)
 
-    def dot(self, other):
-        return self.x * other.x + self.y * other.y
-
-    def cross(self, other):
-        return self.x * other.y - self.y * other.x
+    def middle(self, other):
+        return Vector2((self.x + other.x) / 2, (self.y + other.y) / 2)
 
     def distance_to(self, other):
         return math.sqrt((other.x - self.x) ** 2 + (other.y - self.y) ** 2)
@@ -51,3 +76,20 @@ class Vector2:
     
     def copy(self):
         return Vector2(self.x, self.y)
+    
+    def hash(self):
+        return HashVector2(self)
+
+
+class HashVector2(Vector2):
+    def __init__(self, x: float | int | Vector2, y: float | int = None):
+        if isinstance(x, Vector2):
+            self.x, self.y = x.x, x.y
+        else:
+            super().__init__(x, y)
+    
+    def __hash__(self):
+        return hash((self.x, self.y))
+    
+    def hash(self):
+        return self

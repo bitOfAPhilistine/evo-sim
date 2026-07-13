@@ -3,7 +3,7 @@ from internal.vector2 import Vector2
 from internal.smartList import SmartList
 from internal.world import Sectors, World
 from internal.color import Color
-from internal.funcs import clamp
+from internal.funcs import clamp, check_point_circle
 
 import random, math, config
 
@@ -23,6 +23,9 @@ class GameObject:
         self.sectorIndex = None
 
         self.update_sector()
+    
+    def area(self):
+        return self.radius ** 2 * math.pi
 
     def draw(self, canvas: Canvas):
         if not canvas.winfo_exists():
@@ -86,9 +89,9 @@ class PhysicsObject(GameObject):
     def apply_force(self, force: Vector2):
         self.acceleration += force / self.mass
     
-    def collide(self, other, givenNormal=None):
+    def check_collide(self, other, givenNormal=None):
         totalRadius = self.radius + other.radius
-        if self.pos.distance_to(other.pos) < totalRadius:
+        if check_point_circle(self.pos.hash(), other.pos.hash(), totalRadius):
             # print(f"Colliding {self} with {other}")
             normal = (self.pos - other.pos).normalize() if givenNormal is None else givenNormal
 
@@ -98,9 +101,9 @@ class PhysicsObject(GameObject):
             self.apply_force(normal.scale(totalRadius - (self.pos - other.pos).magnitude()).scale(self.mass))
 
             if isinstance(other, PhysicsObject) and givenNormal is None:
-                other.collide(self, normal.scale(-1))
+                other.check_collide(self, normal.scale(-1))
     
-    def checkBounds(self):
+    def check_bounds(self):
         if self.pos.x < 0 + self.radius or self.pos.x > config.CANVAS_SIZE.x - self.radius:
             self.velocity.x *= -1
             self.pos.x = max(self.radius, min(config.CANVAS_SIZE.x - self.radius, self.pos.x))
@@ -116,10 +119,10 @@ class PhysicsObject(GameObject):
             objects = sector.objects
             for obj in objects:
                 if obj and obj is not self:
-                    self.collide(obj)
+                    self.check_collide(obj)
 
         self.velocity += self.acceleration
         self.pos += self.velocity.scale(dt)
         self.acceleration = Vector2(0, 0)
-        self.checkBounds()
+        self.check_bounds()
         self.update_sector()

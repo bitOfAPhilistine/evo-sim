@@ -1,6 +1,6 @@
 import math
 from tkinter import Canvas
-from internal.vector2 import Vector2
+from internal.vector2 import Vector2, HashVector2
 from internal.smartList import SmartList
 from internal.world import Sectors, World
 from internal.objects import GameObject, PhysicsObject
@@ -27,6 +27,7 @@ class Plant(GameObject):
         self.rootDepth = clamp(self.genome.rootDepth, 0.0, 1.0)
         self.seedSpeed = clamp(self.genome.seedSpeed, 0.0, config.MAX_SEED_SPEED)
         self.lifespan = clamp(self.genome.lifespan, config.MIN_LIFESPAN, config.MAX_LIFESPAN)
+        self.healthThresh = clamp(self.genome.healthThresh, 0.0, 100.0)
         self.lifeLeft = self.lifespan
         self.health = 100.0
         self.nutrients = 0.0
@@ -39,22 +40,22 @@ class Plant(GameObject):
     def __repr__(self):
         return f'''Plant:
     Position: {self.pos}
-    Genome: {self.genome.__hash__()}
-    Color: {self.baseColor}
-    Radius: {self.radius}
-    Max Radius: {self.maxRadius}
-    Growth Speed: {self.growthSpeed}
-    Root Depth: {self.rootDepth}
-    Seed Speed: {self.seedSpeed}
-    Lifespan: {self.lifespan}
-    Time Left: {self.lifeLeft}
-    Health: {self.health}
-    Nutrients: {self.nutrients}
-    Photo Factor: {self.photoFactor}
-    Growth Rate: {self.growthRate}
-    Seed Size: {self.seedSize}
-    Seed Force: {self.seedForce}
-    Seed Cost: {self.seedCost}'''
+    Color: {self.color}
+    Radius: {self.radius:.2f}
+    Area: {self.area():.2f}
+    ---Genome---
+    {self.genome}
+    ---Derived---
+    Photo Factor: {self.photoFactor:.2f}
+    Growth Rate: {self.growthRate:.2f}
+    Seed Size: {self.seedSize:.2f}
+    Seed Force: {self.seedForce:.2f}
+    Seed Cost: {self.seedCost:.2f}
+    ---Dynamic---
+    Time Left: {self.lifeLeft:.2f}
+    Time Until Maturity: {((self.maxRadius - self.radius) / self.growthRate):.2f}
+    Health: {self.health:.2f}
+    Nutrients: {self.nutrients:.2f}'''
     
     def delete(self, canvas: Canvas):
         super().delete(canvas)
@@ -83,7 +84,7 @@ class Plant(GameObject):
             self.nutrients -= dt * self.growthSpeed
 
             self.strokeWidth = math.floor(self.radius * (1.0 - (self.health / 100.0)))
-        if self.health > 90.0:
+        if self.health >= self.healthThresh:
             if self.radius < self.maxRadius:
                 self.radius = min(self.maxRadius, self.radius + dt * self.growthRate)
                 self.nutrients -= dt * self.growthSpeed
@@ -125,9 +126,11 @@ class Seed(PhysicsObject):
     def __repr__(self):
         return f'''Seed:
     Position: {self.pos}
-    Radius: {self.radius}
+    Radius: {self.radius:.2f}
+    Velocity: {self.velocity}
     Is Mutant: {self.isMutant}
-    Genome: {self.genome.__hash__()}'''
+    ---Genome---
+    {self.genome}'''
 
     def update(self, dt, canvas: Canvas):
         super().update(dt, canvas)

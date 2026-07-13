@@ -5,6 +5,7 @@ from internal.world import Sectors, World
 from internal.smartList import SmartList
 from internal.vector2 import Vector2
 from internal.objects import GameObject, PhysicsObject
+from internal.funcs import check_point_circle
 
 import random as rand
 import time
@@ -60,7 +61,7 @@ def on_left_click(event):
     sectors = world.sectors.get_sectors_around(Vector2(event.x // config.SECTOR_SIZE.x, event.y // config.SECTOR_SIZE.y))
     for sector in sectors:
         for obj in sector.objects:
-            if obj and (obj.pos - Vector2(event.x, event.y)).magnitude() <= obj.radius:
+            if obj and check_point_circle(Vector2(event.x, event.y).hash(), obj.pos.hash(), obj.radius):
                 print(f"Clicked on: {obj}")
                 return
     
@@ -76,7 +77,7 @@ def on_right_click(event):
 
     for sector in sectors:
         for obj in sector.objects:
-            if obj and (obj.pos - Vector2(event.x, event.y)).magnitude() <= obj.radius:
+            if obj and check_point_circle(Vector2(event.x, event.y).hash(), obj.pos.hash(), obj.radius):
                 monitoring = obj
 
                 print(f"Now monitoring:")
@@ -105,19 +106,14 @@ def main(dt):
         if obj:
             try:
                 obj.update(dt, canvas)
-            except Exception as e:
-                print(f"Error updating object {obj}\n{e}")
+            except OverflowError:
                 obj.delete(canvas)
     
     world.sectors.draw(canvas)
 
     for obj in world.objects:
         if obj != None:
-            try:
-                obj.draw(canvas)
-            except Exception as e:
-                print(f"Error drawing object {obj}\n{e}")
-                obj.delete(canvas)
+            obj.draw(canvas)
     
     if monitoring != None:
         s = str(monitoring)

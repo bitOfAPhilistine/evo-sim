@@ -1,5 +1,5 @@
 from internal.color import Color
-from internal.funcs import clamp, randcurve
+from internal.funcs import clamp, rand_curve
 
 import random as rand
 import copy, config
@@ -11,7 +11,8 @@ ranges = {
     'growthSpeed': config.MAX_GROWTH_SPEED - 1.0,
     'rootDepth': 1.0,
     'seedSpeed': config.MAX_SEED_SPEED,
-    'lifespan': config.MAX_LIFESPAN - config.MIN_LIFESPAN
+    'lifespan': config.MAX_LIFESPAN - config.MIN_LIFESPAN,
+    'healthThresh': 100.0
 }
 
 class Genome:
@@ -22,17 +23,28 @@ class Genome:
         self.rootDepth: float = rand.uniform(0.0, 1.0)
         self.seedSpeed: float = rand.uniform(0.0, config.MAX_SEED_SPEED)
         self.lifespan: float = rand.uniform(config.MIN_LIFESPAN, config.MAX_LIFESPAN)
+        self.healthThresh: float = rand.uniform(0.0, 100.0)
+    
+    def __repr__(self):
+        return f'''Base Color: {self.color}
+    Max Radius: {self.maxRadius:.2f}
+    Growth Speed: {self.growthSpeed:.2f}
+    Root Depth: {self.rootDepth:.2f}
+    Seed Speed: {self.seedSpeed:.2f}
+    Lifespan: {self.lifespan:.2f}
+    Health Threshold: {self.healthThresh:.2f}'''
     
     def mutate(self):
         newGenome = copy.deepcopy(self)
 
         mutationTrait = rand.choice(list(ranges.keys()))
         
-        mutationAmount = randcurve(-config.MUTATION_FACTOR, config.MUTATION_FACTOR, config.MUTATION_CENTER_WEIGHTING)
+        mutationAmount = rand_curve(-config.MUTATION_FACTOR, config.MUTATION_FACTOR, config.MUTATION_CENTER_WEIGHTING)
         
         if mutationTrait == 'color':
-            channel = rand.randint(0, 2)
-            newGenome.color[channel] = newGenome.color[channel] + mutationAmount * ranges['color']
-        setattr(newGenome, mutationTrait, getattr(newGenome, mutationTrait) + ranges[mutationTrait] * mutationAmount)
+            channel = rand.choice(['r', 'g', 'b'])
+            setattr(newGenome.color, channel, getattr(newGenome.color, channel) + ranges['color'] * mutationAmount)
+            return newGenome
         
+        setattr(newGenome, mutationTrait, getattr(newGenome, mutationTrait) + ranges[mutationTrait] * mutationAmount)
         return newGenome
