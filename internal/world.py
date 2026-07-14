@@ -9,16 +9,18 @@ import config, copy, math, functools
 
 
 class Sector:
-    def __init__(self, nutrients: float):
+    def __init__(self, sectorPos: Vector2, nutrients: float):
         self.objects = SmartList()
+        self.sectorPos = sectorPos
         self.nutrients = nutrients
         self.baseNutrients = nutrients
         self.shape = None
     
     def __repr__(self):
         return f'''Sector:
-    Nutrients: {self.nutrients}
-    Base Nutrients: {self.baseNutrients}'''
+    Position: {self.sectorPos.x:.0f}, {self.sectorPos.y:.0f}
+    Nutrients: {self.nutrients:.4f}
+    Base Nutrients: {self.baseNutrients:.4f}'''
     
     def add(self, item):
         return self.objects.add(item)
@@ -53,14 +55,14 @@ class Sectors:
                     
                     if len(neighborNuts) > 0:
                         avg = (initTiles[y][x] + sum(neighborNuts) / len(neighborNuts)) / 2
-                        self.sectors[y][x] = Sector(avg)
+                        self.sectors[y][x] = Sector(Vector2(x, y), avg)
 
     
-    def get(self, pos: Vector2) -> Sector:
+    def get(self, pos: Vector2) -> Sector | None:
         if 0 <= pos.x < self.width and 0 <= pos.y < self.height:
             return self.sectors[pos.y][pos.x]
         else:
-            raise IndexError("Position out of bounds")
+            return None
     
     # Get the given sector and the 8 surrounding sectors
     def get_sectors_around(self, pos: Vector2) -> list[Sector]:
@@ -70,16 +72,16 @@ class Sectors:
                 sectors.append(self.get(Vector2(x, y)))
         return sectors
     
-    @functools.cache
-    def get_overlap(self, pos: HashVector2, radius: float, precision: int = 8) -> tuple[tuple[HashVector2, float]]:
-        area = radius ** 2 * math.pi
+    #@functools.cache
+    def get_overlap(self, pos: HashVector2, radius: float, precision: int = 8) -> tuple[tuple[tuple[HashVector2, float]], bool]:
         bounds = (Vector2(pos.x - radius, pos.y - radius), Vector2(pos.x + radius, pos.y + radius))
-        sectors = [[Vector2(x, y) for y in range(int(bounds[0].y) // self.sectorSize.y, int(bounds[1].y) // self.sectorSize.y + 1)] for x in range(int(bounds[0].x) // self.sectorSize.x, int(bounds[1].x) // self.sectorSize.x + 1)]
+        sectors = [[Vector2(x, y) for y in range(int(bounds[0].y) // self.sectorSize.y, (int(bounds[1].y) // self.sectorSize.y) + 1)] for x in range(int(bounds[0].x) // self.sectorSize.x, (int(bounds[1].x) // self.sectorSize.x) + 1)]
 
         if len(sectors) == 1:
-            return ((sectors[0][0], 1.0))
+            return tuple([(sectors[0][0], 1.0)]), False
         
-        dividedGridSizes = tuple(4 ** i for i in range(1, precision + 2))
+        area = radius ** 2 * math.pi
+        dividedGridSizes = tuple(4 ** i for i in range(precision + 1))
         overlapping = []
         for col in sectors:
             for sector in col:
@@ -96,7 +98,7 @@ class Sectors:
                 if overlap > 0.0:
                     overlapping.append((sector, (overlap * self.sectorArea) / area))
         
-        return tuple(overlapping)
+        return tuple(overlapping), True
     
     def draw(self, canvas):
         for y in range(self.height):
@@ -122,17 +124,19 @@ class Sectors:
         prevTiles = copy.deepcopy(self.sectors)
         for y in range(self.height):
             for x in range(self.width):
-                neighborNuts = []
-                for dPos in neighbors:
-                    checkPos = Vector2(x, y) + dPos
-                    if 0 <= checkPos.x < self.width and 0 <= checkPos.y < self.height:
-                        neighborNuts.append(prevTiles[checkPos.y][checkPos.x].nutrients)
-                
-                if len(neighborNuts) > 0:
-                    sector = self.get(Vector2(x, y))
-                    avg = (sector.nutrients + (sum(neighborNuts) / len(neighborNuts) * dt * 0.1)) / (1.0 + dt * 0.1)
+                sector = self.get(Vector2(x, y))
 
-                    sector.nutrients = avg
+                if rand.uniform(0.0, dt) < config.TARGET_FRAMERATE:
+                    neighborNuts = []
+                    for dPos in neighbors:
+                        checkPos = Vector2(x, y) + dPos
+                        if 0 <= checkPos.x < self.width and 0 <= checkPos.y < self.height:
+                            neighborNuts.append(prevTiles[checkPos.y][checkPos.x].nutrients)
+                    
+                    if len(neighborNuts) > 0:
+                        avg = (sector.nutrients + (sum(neighborNuts) / len(neighborNuts) * dt * 0.1)) / (1.0 + dt * 0.1)
+
+                        sector.nutrients = avg
                 
                 if sector.nutrients < sector.baseNutrients:
                     sector.nutrients += (sector.baseNutrients - sector.nutrients) * dt * config.SECTOR_REGEN_RATE
@@ -145,6 +149,8 @@ class World():
         self.updateable: SmartList = SmartList()   
         self.sectors: Sectors = Sectors()
         self.species: list = []
+        self.plantCount: int = 0
+        self.seedCount: int = 0
     
     def create_species(self, genome: Genome) -> int:
         self.species.append(genome)

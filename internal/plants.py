@@ -9,8 +9,7 @@ from internal.color import Color
 from internal.funcs import clamp
 
 import random as rand
-import config
-import copy
+import config, time
 
 
 class Plant(GameObject):
@@ -18,19 +17,20 @@ class Plant(GameObject):
         
         self.genome = Genome() if genome is None else genome
 
-        super().__init__(world, pos, self.genome.maxRadius * config.SEED_SIZE_FACTOR, self.genome.color, Color(255, 255, 255), 0)
+        super().__init__(world, pos, self.genome.maxRadius * config.SEED_SIZE_FACTOR, self.genome.color, Color(255, 255, 255))
 
         self.isMutant = isMutant
         self.updateableIndex = world.updateable.add(self)
-        self.sectorOverlaps = world.sectors.get_overlap(pos.hash(), self.radius)
+        self.sectorOverlaps, _ = world.sectors.get_overlap(pos.hash(), self.radius, config.areaCalcPrecision)
+        self.world.plantCount += 1
 
         self.baseColor = self.genome.color
-        self.maxRadius = clamp(self.genome.maxRadius, config.MIN_PLANT_RADIUS, config.MAX_PLANT_RADIUS)
-        self.growthSpeed = clamp(self.genome.growthSpeed, 1.0, config.MAX_GROWTH_SPEED)
-        self.rootDepth = clamp(self.genome.rootDepth, 0.0, 1.0)
-        self.seedSpeed = clamp(self.genome.seedSpeed, 0.0, config.MAX_SEED_SPEED)
-        self.lifespan = clamp(self.genome.lifespan, config.MIN_LIFESPAN, config.MAX_LIFESPAN)
-        self.healthThresh = clamp(self.genome.healthThresh, 0.0, 100.0)
+        self.maxRadius = self.genome.maxRadius
+        self.growthSpeed = self.genome.growthSpeed
+        self.rootDepth = self.genome.rootDepth
+        self.seedSpeed = self.genome.seedSpeed
+        self.lifespan = self.genome.lifespan
+        self.healthThresh = self.genome.healthThresh
         
         self.photoFactor = sum(map(lambda mine, opt: ((256 - mine) / (256 - opt)) ** 2, self.baseColor, config.OPTIMAL_PLANT_COLOR)) / 3
         self.growthRate = self.maxRadius * 0.9 / (self.lifespan / self.growthSpeed * (1.5 - self.rootDepth))
@@ -45,10 +45,12 @@ class Plant(GameObject):
     
     def __repr__(self):
         return f'''Plant:
-    Position: {self.pos}
+    Position: {self.pos.x:.2f}, {self.pos.y:.2f}
     Color: {self.color}
     Radius: {self.radius:.2f}
     Area: {self.area:.2f}
+    Sector Overlaps:
+    {'\n    '.join(map(str, self.sectorOverlaps))}
     Is Mutant: {self.isMutant}
     ---Genome---
     {self.genome}
@@ -68,6 +70,8 @@ class Plant(GameObject):
         super().delete(canvas)
         if self.updateableIndex is not None:
             self.world.updateable.remove(self.updateableIndex)
+        
+        self.world.plantCount -= 1
 
     def update(self, dt, canvas: Canvas):
         self.lifeLeft -= dt
@@ -84,9 +88,15 @@ class Plant(GameObject):
             self.health -= (self.photoFactor - 1.0) * self.radius * dt
 
         if self.health <= 0.0:
-            if self.nutrients > 0.0:
-                self.world.sectors.get(self.sectorPos).nutrients += self.nutrients / self.world.sectors.sectorArea
-            self.world.sectors.get(self.sectorPos).nutrients += self.area / self.world.sectors.sectorArea
+            for so in self.sectorOverlaps:
+                sector = self.world.sectors.get(so[0])
+                if sector == None:
+                    continue
+
+                if self.nutrients > 0.0:
+                    sector.nutrients += self.nutrients * so[1] / self.world.sectors.sectorArea
+                sector.nutrients += self.area * so[1] / self.world.sectors.sectorArea
+
             self.delete(canvas)
             return
         elif self.health < 100.0:
@@ -99,9 +109,18 @@ class Plant(GameObject):
             if self.radius < self.maxRadius:
                 self.radius = min(self.maxRadius, self.radius + dt * self.growthRate)
                 self.maxNutrients = self.area
-                self.sectorOverlaps = self.world.sectors.get_overlap(self.pos.hash(), self.radius, 8 - math.floor(math.log2(dt / config.TARGET_FRAMERATE)))
+
+                preSOTime = time.time()
+                self.sectorOverlaps, didQuadtree = self.world.sectors.get_overlap(self.pos.hash(), self.radius, config.areaCalcPrecision)
+                sOTimeTaken = time.time() - preSOTime
+
+                if sOTimeTaken > config.TARGET_FRAMERATE / 2.0 and config.areaCalcPrecision > config.MIN_AREA_CALC_PRECISION:
+                    config.areaCalcPrecision -= 1
+                elif sOTimeTaken < config.TARGET_FRAMERATE / (self.world.plantCount + 1) and didQuadtree and config.areaCalcPrecision < config.MAX_AREA_CALC_PRECISION:
+                    config.areaCalcPrecision += 1
+                
                 self.nutrients -= dt * self.growthRate
-            elif self.nutrients > self.seedCost and rand.random() < dt:
+            elif self.nutrients > self.seedCost and rand.random() < 1.0 / (self.world.seedCount + 1):
                 self.nutrients -= self.seedCost
                 angle = rand.uniform(0, 2 * math.pi)
                 distance = self.radius + self.seedSize
@@ -117,20 +136,10 @@ class Plant(GameObject):
 
         if self.nutrients < self.maxNutrients:
             nutrientsWanted = max(0, min(self.maxNutrients - self.nutrients, dt * self.area * self.photoFactor))
-            
-            if len(self.sectorOverlaps) == 0:
-                print("Error: plant lacks sectorOverlaps, recalculating...")
-                print(f"{self}")
-            if isinstance(self.sectorOverlaps[0], tuple):
-                overlaps = list(self.sectorOverlaps)
-                rand.shuffle(overlaps)
-            else:
-                overlaps = [self.sectorOverlaps]
 
-            for so in overlaps:
-                try:
-                    sector = self.world.sectors.get(so[0])
-                except IndexError:
+            for so in self.sectorOverlaps:
+                sector = self.world.sectors.get(so[0])
+                if sector == None:
                     continue
                 available = 0.0
 
@@ -151,6 +160,8 @@ class Seed(PhysicsObject):
     def __init__(self, world: World, pos: Vector2, radius: float, genome: Genome):
         super().__init__(world, pos, radius, Color(145, 45, 30), math.pi * radius ** 2, config.SEED_DRAG)
 
+        self.world.seedCount += 1
+
         self.isMutant = rand.random() < config.MUTATION_CHANCE
         self.genome: Genome = None
         if self.isMutant:
@@ -169,6 +180,11 @@ class Seed(PhysicsObject):
     Is Mutant: {self.isMutant}
     ---Genome---
     {self.genome}'''
+
+    def delete(self, canvas: Canvas):
+        super().delete(canvas)
+
+        self.world.seedCount -= 1
 
     def update(self, dt, canvas: Canvas):
         super().update(dt, canvas)

@@ -50,7 +50,7 @@ class Vector2:
             return Vector2(self.x / other, self.y / other)
 
     def __repr__(self) -> str:
-        return f"({self.x:.2f}, {self.y:.2f})"
+        return f"Vector2({self.x}, {self.y})"
     
     def __iter__(self):
         yield self.x
@@ -88,8 +88,56 @@ class HashVector2(Vector2):
         else:
             super().__init__(x, y)
     
+    def __repr__(self) -> str:
+        return f"HashVector2({self.x}, {self.y})"
+    
     def __hash__(self):
         return hash((self.x, self.y))
+    
+    def __add__(self, other):
+        if isinstance(other, HashVector2):
+            return HashVector2(self.x + other.x, self.y + other.y)
+        return super().__add__(other)
+
+    def __sub__(self, other):
+        if isinstance(other, HashVector2):
+            return Vector2(self.x - other.x, self.y - other.y)
+        return super().__sub__(other)
+
+    def __mul__(self, other):
+        if isinstance(other, HashVector2):
+            return Vector2(self.x * other.x, self.y * other.y)
+        return super().__mul__(other)
+
+    def __truediv__(self, other):
+        if isinstance(other, HashVector2):
+            return Vector2(self.x / other.x, self.y / other.y)
+        return super().__truediv__(other)
+    
+    def __iter__(self):
+        yield self.x
+        yield self.y
+
+    def magnitude(self):
+        return math.sqrt(self.x**2 + self.y**2)
+
+    def normalize(self):
+        mag = self.magnitude()
+        if mag == 0.0:
+            return HashVector2(0, 0)
+        return HashVector2(self.x / mag, self.y / mag)
+
+    def middle(self, other):
+        return HashVector2((self.x + other.x) / 2, (self.y + other.y) / 2)
+
+    def distance_to(self, other):
+        return math.sqrt((other.x - self.x) ** 2 + (other.y - self.y) ** 2)
+
+    def scale(self, factor):
+        return HashVector2(self.x * factor, self.y * factor)
+    
+    def copy(self):
+        return HashVector2(self.x, self.y)
     
     def hash(self):
         return self

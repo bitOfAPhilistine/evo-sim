@@ -11,6 +11,8 @@ SECTOR_SIZE = Vector2(100, 100)
 SECTOR_BLUR_LEVEL = 2
 SECTOR_REGEN_RATE = 0.1
 SECTOR_DECAY_RATE = 0.01
+MIN_AREA_CALC_PRECISION = 4
+MAX_AREA_CALC_PRECISION = 8
 
 # Plant Configs
 OPTIMAL_PLANT_COLOR = Color(0, 200, 0)
@@ -29,3 +31,11 @@ MAX_GROWTH_SPEED = 5.0
 MAX_SEED_SPEED = 100.0
 MIN_LIFESPAN = 30.0
 MAX_LIFESPAN = 300.0
+
+
+
+# Global Runtime Variables (DO NOT EDIT)
+monitoring = None
+running = True
+areaCalcPrecision = 8
+monitoringString = ""

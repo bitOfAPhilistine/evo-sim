@@ -47,4 +47,14 @@ class Genome:
             return newGenome
         
         setattr(newGenome, mutationTrait, getattr(newGenome, mutationTrait) + ranges[mutationTrait] * mutationAmount)
+        newGenome.clamp()
+
         return newGenome
+    
+    def clamp(self):
+        self.maxRadius = clamp(self.maxRadius, config.MIN_PLANT_RADIUS, config.MAX_PLANT_RADIUS)
+        self.growthSpeed = clamp(self.growthSpeed, 1.0, config.MAX_GROWTH_SPEED)
+        self.rootDepth = clamp(self.rootDepth, 0.0, 1.0)
+        self.seedSpeed = clamp(self.seedSpeed, 0.0, config.MAX_SEED_SPEED)
+        self.lifespan = clamp(self.lifespan, config.MIN_LIFESPAN, config.MAX_LIFESPAN)
+        self.healthThresh = clamp(self.healthThresh, 0.0, 100.0)
