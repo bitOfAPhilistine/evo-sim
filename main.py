@@ -96,19 +96,12 @@ def on_r(event):
 root.bind("<r>", on_r)
 
 
-def main(dt):
+def main(dt, startTime):
     if len(world.objects) == 0:
         print("Mass extinction event, resetting world...")
         initialize()
 
-    world.sectors.update(dt)
-    
-    for obj in world.updateable:
-        if obj:
-            try:
-                obj.update(dt, canvas)
-            except OverflowError:
-                obj.delete(canvas)
+    world.update(canvas, dt, startTime)
     
     world.sectors.draw(canvas)
 
@@ -132,7 +125,7 @@ if __name__ == "__main__":
     while config.running:
         t = time.time()
 
-        main(dt)
+        main(dt, t)
 
         try:
             root.update()

@@ -21,7 +21,8 @@ class Plant(GameObject):
 
         self.isMutant = isMutant
         self.updateableIndex = world.updateable.add(self)
-        self.sectorOverlaps, _ = world.sectors.get_overlap(pos.hash(), self.radius, config.areaCalcPrecision)
+        self.sectorOverlaps = world.request_overlaps(self)
+        self.queued = False
         self.world.plantCount += 1
 
         self.baseColor = self.genome.color
@@ -73,6 +74,16 @@ class Plant(GameObject):
         
         self.world.plantCount -= 1
 
+    def update_sectors(self):
+        super().update_sectors()
+        if list(self.sectors) == 1:
+            self.sectorOverlaps = [1.0]
+            return
+        
+        if not self.queued:
+            self.world.request_overlaps(self)
+            self.queued = True
+
     def update(self, dt, canvas: Canvas):
         self.lifeLeft -= dt
         self.nutrients -= dt * self.area
@@ -88,14 +99,10 @@ class Plant(GameObject):
             self.health -= (self.photoFactor - 1.0) * self.radius * dt
 
         if self.health <= 0.0:
-            for so in self.sectorOverlaps:
-                sector = self.world.sectors.get(so[0])
-                if sector == None:
-                    continue
-
+            for sector, overlap in zip(self.sectors, self.sectorOverlaps, strict=True):
                 if self.nutrients > 0.0:
-                    sector.nutrients += self.nutrients * so[1] / self.world.sectors.sectorArea
-                sector.nutrients += self.area * so[1] / self.world.sectors.sectorArea
+                    sector.nutrients += self.nutrients * overlap / self.world.sectors.sectorArea
+                sector.nutrients += self.area * overlap / self.world.sectors.sectorArea
 
             self.delete(canvas)
             return
@@ -137,14 +144,11 @@ class Plant(GameObject):
         if self.nutrients < self.maxNutrients:
             nutrientsWanted = max(0, min(self.maxNutrients - self.nutrients, dt * self.area * self.photoFactor))
 
-            for so in self.sectorOverlaps:
-                sector = self.world.sectors.get(so[0])
-                if sector == None:
-                    continue
+            for sector, overlap in rand.shuffle(list(zip(self.sectors, self.sectorOverlaps, strict=True))):
                 available = 0.0
 
                 if sector.nutrients > 1.0 - self.rootDepth:
-                    available = self.world.sectors.sectorArea * so[1] * max(0, sector.nutrients + self.rootDepth - 1.0) * dt
+                    available = self.world.sectors.sectorArea * overlap * max(0, sector.nutrients + self.rootDepth - 1.0) * dt
                 
                 taken = max(0, min(available, nutrientsWanted))
                 sector.nutrients -= taken / self.world.sectors.sectorArea

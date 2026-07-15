@@ -1,7 +1,7 @@
 from tkinter import Canvas
 from internal.vector2 import Vector2
 from internal.smartList import SmartList
-from internal.world import Sectors, World
+from internal.world import Sector, Sectors, World
 from internal.color import Color
 from internal.funcs import clamp, check_point_circle
 
@@ -12,24 +12,31 @@ import random, math, config
 class GameObject:
     def __init__(self, world: World, pos: Vector2, radius: float, color: Color, strokeColor: Color = Color(0, 0, 0), strokeWidth: int = 1):
         self.world = world
-        self.sectorPos = None
         self.pos = pos
+        self.area: float
         self.radius = radius
-        self.area = self.radius ** 2 * math.pi
         self.color = color
         self.strokeColor = strokeColor
         self.strokeWidth = strokeWidth
         self.shape = None
         self.objectIndex = world.objects.add(self)
-        self.sectorIndex = None
-
-        self.update_sector()
+        self.sectors = self.world.sectors.get_overlapping(self.pos, self.radius)
+        self.sectorIndices = self.world.sectors.add_to_sectors(self, self.sectors)
     
     def __setattr__(self, name, value):
         object.__setattr__(self, name, value)
 
         if name == 'radius':
             object.__setattr__(self, 'area', self.radius ** 2 * math.pi)
+            try:
+                self.update_sectors()
+            except:
+                pass
+        elif name == 'pos':
+            try:
+                self.update_sectors()
+            except:
+                pass
 
     def draw(self, canvas: Canvas):
         if not canvas.winfo_exists():
@@ -45,23 +52,19 @@ class GameObject:
             width=self.strokeWidth
         )
     
-    def update_sector(self):
-        sectorPos = Vector2(
-            clamp(int(self.pos.x // self.world.sectors.sectorSize.x), 0, self.world.sectors.width - 1),
-            clamp(int(self.pos.y // self.world.sectors.sectorSize.y), 0, self.world.sectors.height - 1)
-        )
-        if self.sectorPos is None or self.sectorIndex is None or self.sectorPos != sectorPos:
-            if self.sectorPos is not None:
-                self.world.sectors.get(self.sectorPos).objects.remove(self.sectorIndex)
-            self.sectorPos = sectorPos
-            self.sectorIndex = self.world.sectors.get(self.sectorPos).objects.add(self)
+    def update_sectors(self):
+        newSectors = self.world.sectors.get_overlapping(self.pos, self.radius)
+        if newSectors != self.sectors:
+            self.world.sectors.remove_from_sectors(self.sectors, self.sectorIndices)
+            self.sectors = newSectors
+            self.sectorIndices = self.world.sectors.add_to_sectors(self, self.sectors)
     
     def delete(self, canvas: Canvas):
         if self.shape is not None and canvas.winfo_exists():
             canvas.delete(self.shape)
             self.shape = None
-        if self.sectorIndex is not None and self.sectorPos is not None:
-            self.world.sectors.get(self.sectorPos).objects.remove(self.sectorIndex)
+        if len(self.sectors) > 0:
+            self.world.sectors.remove_from_sectors(self.sectors, self.sectorIndices)
         if self.objectIndex is not None:
             self.world.objects.remove(self.objectIndex)
 
@@ -118,7 +121,7 @@ class PhysicsObject(GameObject):
     def update(self, dt, canvas: Canvas):
         self.apply_force(self.velocity.scale(-1).scale(self.drag))
 
-        sectorsToCheck = self.world.sectors.get_sectors_around(self.sectorPos)
+        sectorsToCheck = self.sectors
         for sector in sectorsToCheck:
             objects = sector.objects
             for obj in objects:
@@ -127,6 +130,5 @@ class PhysicsObject(GameObject):
 
         self.velocity += self.acceleration
         self.pos += self.velocity.scale(dt)
-        self.acceleration = Vector2(0, 0)
+        self.acceleration = Vector2(0)
         self.check_bounds()
-        self.update_sector()

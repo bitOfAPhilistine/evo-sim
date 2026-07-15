@@ -30,7 +30,15 @@ def check_rect_circle(minCorner: HashVector2, maxCorner: HashVector2, center: Ha
 
 # Recursive internal function to figure out overlap
 @functools.cache
-def grid_border_search(outerCorners: tuple[tuple[HashVector2, bool]], pos: HashVector2, radius: float, dividedGridSizes: tuple[int], currentPrecision: int = 0) -> float:
+def grid_border_search(outerCorners: tuple[
+    tuple[HashVector2, bool],
+    tuple[HashVector2, bool],
+    tuple[HashVector2, bool],
+    tuple[HashVector2, bool]
+],
+pos: HashVector2,radius: float,
+dividedGridSizes: tuple[int],
+currentPrecision: int = 0) -> float:
     cornerOverlap = len(list(filter(lambda x: x[1], outerCorners)))
     
     # Check if given section is fully overlapping and return full value if so
