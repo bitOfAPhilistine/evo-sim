@@ -1,8 +1,8 @@
-from internal.vector2 import Vector2, HashVector2
+from internal.vector2 import Vector2
 from internal.smartList import SmartList
 from internal.genome import Genome
 from internal.color import Color
-from internal.funcs import clamp, check_point_circle, check_rect_circle, grid_border_search
+from internal.funcs import *
 
 import random as rand
 import config, copy, math, functools, time
@@ -41,15 +41,15 @@ class Sector:
 
     def get_overlap(self, pos: Vector2, radius: float, precision: int) -> float:
         sectorCorners = [
-            [HashVector2(self.bounds[0].x, self.bounds[0].y), False],
-            [HashVector2(self.bounds[1].x, self.bounds[0].y), False],
-            [HashVector2(self.bounds[0].x, self.bounds[1].y), False],
-            [HashVector2(self.bounds[1].x, self.bounds[1].y), False]
+            [Vector2(self.bounds[0].x, self.bounds[0].y), False],
+            [Vector2(self.bounds[1].x, self.bounds[0].y), False],
+            [Vector2(self.bounds[0].x, self.bounds[1].y), False],
+            [Vector2(self.bounds[1].x, self.bounds[1].y), False]
         ]
-        sectorCorners = tuple(map(lambda x: (x[0], check_point_circle(x[0], pos.hash(), radius)), sectorCorners))
+        sectorCorners = tuple(map(lambda x: (x[0], check_point_circle(x[0], pos, radius)), sectorCorners))
         dividedGridSizes = tuple([4 ** i for i in range(precision + 1)])
 
-        return grid_border_search(sectorCorners, pos.hash(), radius, dividedGridSizes)
+        return grid_border_search(sectorCorners, pos, radius, dividedGridSizes)
 
 class Sectors:
     def __init__(self):
@@ -97,7 +97,7 @@ class Sectors:
         output = []
         for col in sectors:
             for sector in col:
-                if check_rect_circle(self.get(sector).bounds[0].hash(), self.get(sector).bounds[1].hash(), pos.hash(), radius):
+                if check_rect_circle(self.get(sector).bounds[0], self.get(sector).bounds[1], pos, radius):
                     output.append(self.get(sector))
         return output
     
@@ -107,7 +107,7 @@ class Sectors:
             output.append(sector.add(object))
         return output
     
-    def remove_from_sectors (self, sectors: list[Sector, int], indices: list[int]):
+    def remove_from_sectors (self, sectors: list[Sector], indices: list[int]):
         for sector, index in zip(sectors, indices, strict=True):
             sector.remove(index)
     
@@ -151,7 +151,8 @@ class Sectors:
     
     def update(self):
         dt = min(config.TARGET_FRAMERATE * 10.0, time.time() - self.lastUpdated)
-        prevTiles = copy.deepcopy(self.sectors)
+        prevTiles = [[self.get(Vector2(x, y)).nutrients for y in range(self.height)] for x in range(self.width)]
+
         for y in range(self.height):
             for x in range(self.width):
                 sector = self.get(Vector2(x, y))
@@ -160,7 +161,7 @@ class Sectors:
                 for dPos in neighbors:
                     checkPos = Vector2(x, y) + dPos
                     if 0 <= checkPos.x < self.width and 0 <= checkPos.y < self.height:
-                        neighborNuts.append(prevTiles[checkPos.y][checkPos.x].nutrients)
+                        neighborNuts.append(prevTiles[checkPos.x][checkPos.y])
                 
                 if len(neighborNuts) > 0:
                     avg = (sector.nutrients + (sum(neighborNuts) / len(neighborNuts) * dt * 0.1)) / (1.0 + dt * 0.1)
@@ -184,9 +185,9 @@ class World():
         self.seedCount: int = 0
         self.overlapRequests: list = []
     
-    def request_overlaps(self, object):
-        self.overlapRequests.append(object)
-        object.queued = True
+    def request_overlaps(self, obj):
+        self.overlapRequests.append(obj)
+        obj.queued = True
     
     def create_species(self, genome: Genome) -> int:
         self.species.append(genome)

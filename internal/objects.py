@@ -3,9 +3,9 @@ from internal.vector2 import Vector2
 from internal.smartList import SmartList
 from internal.world import Sector, Sectors, World
 from internal.color import Color
-from internal.funcs import clamp, check_point_circle
+from internal.funcs import *
 
-import random, math, config, time
+import random, math, config, time, sys, gc
 
 
 # Base object with basic properties
@@ -22,6 +22,9 @@ class GameObject:
         self.objectIndex = world.objects.add(self)
         self.sectors = self.world.sectors.get_overlapping(self.pos, self.radius)
         self.sectorIndices = self.world.sectors.add_to_sectors(self, self.sectors)
+
+        if config.debug:
+            print(f"Created: {object.__repr__(self)}")
     
     def __setattr__(self, name, value):
         object.__setattr__(self, name, value)
@@ -60,6 +63,10 @@ class GameObject:
             self.sectorIndices = self.world.sectors.add_to_sectors(self, self.sectors)
     
     def delete(self, canvas: Canvas):
+        if config.debug:
+            print(f"Deleting: {object.__repr__(self)}")
+            config.debugDeletionList.append(self)
+        
         if self.shape is not None and canvas.winfo_exists():
             canvas.delete(self.shape)
             self.shape = None
@@ -99,7 +106,7 @@ class PhysicsObject(GameObject):
     
     def check_collide(self, other, givenNormal=None):
         totalRadius = self.radius + other.radius
-        if check_point_circle(self.pos.hash(), other.pos.hash(), totalRadius):
+        if check_point_circle(self.pos, other.pos, totalRadius):
             # print(f"Colliding {self} with {other}")
             normal = (self.pos - other.pos).normalize() if givenNormal is None else givenNormal
 

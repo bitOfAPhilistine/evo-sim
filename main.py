@@ -8,7 +8,7 @@ from internal.objects import GameObject, PhysicsObject
 from internal.funcs import check_point_circle
 
 import random as rand
-import config, time, sys
+import config, time, sys, gc
 
 
 # Initialize the main window
@@ -60,7 +60,7 @@ def on_left_click(event):
     sector = world.sectors.get(Vector2(event.x // config.SECTOR_SIZE.x, event.y // config.SECTOR_SIZE.y))
 
     for obj in sector.objects:
-        if obj and check_point_circle(Vector2(event.x, event.y).hash(), obj.pos.hash(), obj.radius):
+        if obj and check_point_circle(Vector2(event.x, event.y), obj.pos, obj.radius):
             print(f"Clicked on: {obj}")
             return
     
@@ -71,21 +71,22 @@ canvas.bind("<Button-1>", on_left_click)
 # On right click, mark an object to be monitored
 def on_right_click(event):
     clear_monitoring()
-    sector = world.sectors.get(Vector2(event.x // config.SECTOR_SIZE.x, event.y // config.SECTOR_SIZE.y))
+    if not config.debug:
+        sector = world.sectors.get(Vector2(event.x // config.SECTOR_SIZE.x, event.y // config.SECTOR_SIZE.y))
 
-    for obj in sector.objects:
-        if obj and check_point_circle(Vector2(event.x, event.y).hash(), obj.pos.hash(), obj.radius):
-            print(f"Now monitoring:")
-            config.monitoring = obj
-            config.monitoring.strokeColor.b = 255
-            config.monitoringString = str(config.monitoring)
-            print(config.monitoringString)
-            return
-    
-    print(f"Now monitoring:")
-    config.monitoring = sector
-    config.monitoringString = str(config.monitoring)
-    print(config.monitoringString)
+        for obj in sector.objects:
+            if obj and check_point_circle(Vector2(event.x, event.y), obj.pos, obj.radius):
+                print(f"Now monitoring:")
+                config.monitoring = obj
+                config.monitoring.strokeColor.b = 255
+                config.monitoringString = str(config.monitoring)
+                print(config.monitoringString)
+                return
+        
+        print(f"Now monitoring:")
+        config.monitoring = sector
+        config.monitoringString = str(config.monitoring)
+        print(config.monitoringString)
 canvas.bind("<Button-3>", on_right_click)
 
 
@@ -94,6 +95,14 @@ def on_r(event):
     print("Manual restart, resetting world...")
     initialize()
 root.bind("<r>", on_r)
+
+
+# On d, toggle debug printing
+def on_d(event):
+    config.debug = not config.debug
+    clear_monitoring()
+    print("Debug printing activated" if config.debug else "Debug printing deactivated")
+root.bind("<d>", on_d)
 
 
 def main(dt, startTime):
@@ -117,6 +126,13 @@ def main(dt, startTime):
             print(config.LINE_UP, end=config.LINE_CLEAR)
         config.monitoringString = str(config.monitoring)
         print(config.monitoringString)
+    
+    if len(config.debugDeletionList) > 0:
+        print(f"Deleted objects: {list(map(object.__repr__, config.debugDeletionList))}")
+        print(f"Ref counts: {list(map(sys.getrefcount, config.debugDeletionList))}")
+        referrers = list(map(gc.get_referrers, config.debugDeletionList))
+        print(f"Referrers: {referrers}")
+        config.debugDeletionList = []
 
 
 if __name__ == "__main__":

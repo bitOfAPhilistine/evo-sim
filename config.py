@@ -18,7 +18,7 @@ MAX_AREA_CALC_PRECISION = 6
 
 # Plant Configs
 OPTIMAL_PLANT_COLOR = Color(0, 200, 0)
-PLANT_NUTRIENT_EFFICIENCY = 8
+PLANT_NUTRIENT_EFFICIENCY = 2
 SEED_DRAG = 0.25
 SEED_SIZE_FACTOR = 0.1
 SEED_COST_FACTOR = 0.1
@@ -34,11 +34,11 @@ MAX_SEED_SPEED = 100.0
 MIN_LIFESPAN = 30.0
 MAX_LIFESPAN = 300.0
 
-
-
-# Global Runtime Variables (DO NOT EDIT)
+# Global Runtime and Derived Variables (DO NOT EDIT)
 monitoring = None
 running = True
+debug = False
+debugDeletionList = []
 areaCalcPrecision = MAX_AREA_CALC_PRECISION
 monitoringString = ""
 maxTimeBetweenSectorSmoothing = TARGET_FRAMERATE * SECTOR_MAX_FRAMES_BETWEEN_SMOOTH

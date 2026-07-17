@@ -1,7 +1,6 @@
-from internal.vector2 import Vector2, HashVector2
+from internal.vector2 import Vector2
 
 import random as rand
-import functools
 
 
 def clamp(value, min_value, max_value):
@@ -16,12 +15,10 @@ def rand_curve(min: float, max: float, weight: int = 2) -> float:
 def check_point_rect(point: Vector2, minCorner: Vector2, maxCorner: Vector2) -> bool:
     return minCorner <= point <= maxCorner
 
-@functools.cache
-def check_point_circle(point: HashVector2, center: HashVector2, radius: float) -> bool:
+def check_point_circle(point: Vector2, center: Vector2, radius: float) -> bool:
     return (point.x - center.x) ** 2 + (point.y - center.y) ** 2 <= radius ** 2
 
-@functools.cache
-def check_rect_circle(minCorner: HashVector2, maxCorner: HashVector2, center: HashVector2, radius: float) -> bool:
+def check_rect_circle(minCorner: Vector2, maxCorner: Vector2, center: Vector2, radius: float) -> bool:
     closest = Vector2(max(minCorner.x, min(center.x, maxCorner.x)), max(minCorner.y, min(center.y, maxCorner.y)))
 
     dif = center - closest
@@ -29,14 +26,13 @@ def check_rect_circle(minCorner: HashVector2, maxCorner: HashVector2, center: Ha
     return dif.x ** 2 + dif.y ** 2 <= radius ** 2
 
 # Recursive internal function to figure out overlap
-@functools.cache
 def grid_border_search(outerCorners: tuple[
-    tuple[HashVector2, bool],
-    tuple[HashVector2, bool],
-    tuple[HashVector2, bool],
-    tuple[HashVector2, bool]
+    tuple[Vector2, bool],
+    tuple[Vector2, bool],
+    tuple[Vector2, bool],
+    tuple[Vector2, bool]
 ],
-pos: HashVector2,radius: float,
+pos: Vector2,radius: float,
 dividedGridSizes: tuple[int],
 currentPrecision: int = 0) -> float:
     cornerOverlap = len(list(filter(lambda x: x[1], outerCorners)))
@@ -46,7 +42,7 @@ currentPrecision: int = 0) -> float:
         return 1.0 / dividedGridSizes[currentPrecision]
     
     # Check if no corners overlap and if circle can't intersect regardless, return 0.0 if so
-    if cornerOverlap == 0 and not check_rect_circle(outerCorners[0][0].hash(), outerCorners[3][0].hash(), pos, radius):
+    if cornerOverlap == 0 and not check_rect_circle(outerCorners[0][0], outerCorners[3][0], pos, radius):
         return 0.0
     
     # Check if at max precision and return proportional value if so
@@ -61,7 +57,7 @@ currentPrecision: int = 0) -> float:
         [outerCorners[1][0].middle(outerCorners[3][0]), False],
         [outerCorners[2][0].middle(outerCorners[3][0]), False]
     ]
-    innerCorners = tuple(map(lambda x: (x[0].hash(), check_point_circle(x[0].hash(), pos, radius)), innerCorners))
+    innerCorners = tuple(map(lambda x: (x[0], check_point_circle(x[0], pos, radius)), innerCorners))
     
     subgrid = (
         (

@@ -1,12 +1,12 @@
 import math
 from tkinter import Canvas
-from internal.vector2 import Vector2, HashVector2
+from internal.vector2 import Vector2
 from internal.smartList import SmartList
 from internal.world import Sectors, World
 from internal.objects import GameObject, PhysicsObject
 from internal.genome import Genome
 from internal.color import Color
-from internal.funcs import clamp
+from internal.funcs import *
 
 import random as rand
 import config, time
@@ -35,7 +35,7 @@ class Plant(GameObject):
         self.lifespan = self.genome.lifespan
         self.healthThresh = self.genome.healthThresh
         
-        self.photoFactor = sum(map(lambda mine, opt: ((256 - mine) / (256 - opt)) ** 2, self.baseColor, config.OPTIMAL_PLANT_COLOR)) / 3
+        self.photoFactor = sum(map(lambda mine, opt: (256 - mine) / (256 - opt), self.baseColor, config.OPTIMAL_PLANT_COLOR)) / 3
         self.growthRate = self.maxRadius * 0.9 / (self.lifespan / self.growthSpeed * (1.5 - self.rootDepth))
         self.seedSize = self.maxRadius * config.SEED_SIZE_FACTOR
         self.seedForce = self.seedSpeed * (self.seedSize ** 2 * math.pi)
@@ -92,6 +92,25 @@ class Plant(GameObject):
 
     def update(self, canvas: Canvas):
         dt = min(config.TARGET_FRAMERATE * 10.0, time.time() - self.lastUpdated)
+
+        if self.nutrients < self.maxNutrients:
+            nutrientsWanted = max(0, min(self.maxNutrients - self.nutrients, dt * self.area * self.photoFactor))
+
+            for sector, overlap in list(zip(self.sectors, self.sectorOverlaps, strict=True)):
+                available = 0.0
+
+                if sector.nutrients > 1.0 - self.rootDepth:
+                    available = self.world.sectors.sectorArea * overlap * max(0, sector.nutrients + self.rootDepth - 1.0) * dt
+                
+                taken = max(0, min(available, nutrientsWanted))
+                sector.nutrients -= taken / self.world.sectors.sectorArea
+                self.nutrients += taken * config.PLANT_NUTRIENT_EFFICIENCY
+                nutrientsWanted -= taken * config.PLANT_NUTRIENT_EFFICIENCY
+
+                if nutrientsWanted <= 0.0 or self.nutrients >= self.maxNutrients:
+                    self.nutrients = min(self.nutrients, self.maxNutrients)
+                    break
+        
         self.lifeLeft -= dt
         self.nutrients -= dt * self.area
 
@@ -136,27 +155,9 @@ class Plant(GameObject):
                 )
 
                 seed.apply_force(offset.normalize().scale(self.seedForce))
-
-        if self.nutrients < self.maxNutrients:
-            nutrientsWanted = max(0, min(self.maxNutrients - self.nutrients, dt * self.area * self.photoFactor))
-
-            for sector, overlap in list(zip(self.sectors, self.sectorOverlaps, strict=True)):
-                available = 0.0
-
-                if sector.nutrients > 1.0 - self.rootDepth:
-                    available = self.world.sectors.sectorArea * overlap * max(0, sector.nutrients + self.rootDepth - 1.0) * dt
-                
-                taken = max(0, min(available, nutrientsWanted))
-                sector.nutrients -= taken / self.world.sectors.sectorArea
-                self.nutrients += taken * config.PLANT_NUTRIENT_EFFICIENCY
-                nutrientsWanted -= taken * config.PLANT_NUTRIENT_EFFICIENCY
-
-                if nutrientsWanted <= 0.0 or self.nutrients >= self.maxNutrients:
-                    self.nutrients = min(self.nutrients, self.maxNutrients)
-                    break
         
         self.strokeColor.r = int(255 - self.health / 100.0 * 255)
-        self.strokeColor.g = int(255 - self.nutrients / self.maxNutrients * 255)
+        self.strokeColor.g = int(self.nutrients / self.maxNutrients * 255)
 
         self.lastUpdated = time.time()
 
