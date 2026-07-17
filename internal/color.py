@@ -17,6 +17,9 @@ class Color:
     def __setattr__(self, name, value):
         if name in ['r', 'g', 'b']:
             self.__dict__[name] = clamp(int(value), 0, 255)
+    
+    def copy(self):
+        return Color(self.r, self.g, self.b)
 
     def to_hex(self) -> str:
         return f"#{''.join(map(lambda x: hex(x)[2:] if x >= 16 else ''.join(['0', hex(x)[2:]]), self))}"

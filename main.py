@@ -28,6 +28,8 @@ def clear_monitoring():
             print(config.LINE_UP, end=config.LINE_CLEAR)
         config.monitoringString = str(config.monitoring)
         print(config.monitoringString)
+        if isinstance(config.monitoring, GameObject):
+            config.monitoring.strokeColor.b = 0
         config.monitoring = None
 
 def initialize():
@@ -38,7 +40,7 @@ def initialize():
     clear_monitoring()
 
     # Add randomly placed plants
-    for _ in range(rand.randint(10, 25)):
+    for _ in range(config.STARTING_PLANTS):
         Plant(
             world=world,
             pos=Vector2(rand.uniform(0, config.CANVAS_SIZE.x), rand.uniform(0, config.CANVAS_SIZE.y))
@@ -49,41 +51,39 @@ def on_closing(event=None):
     print("Closing window")
     config.running = False
     root.destroy()
-    sys.exit(0)
 root.protocol("WM_DELETE_WINDOW", on_closing)
 
 
 # On left click, check for an object at the clicked position and print its details
 def on_left_click(event):
     clear_monitoring()
+    sector = world.sectors.get(Vector2(event.x // config.SECTOR_SIZE.x, event.y // config.SECTOR_SIZE.y))
 
-    sectors = world.sectors.get_sectors_around(Vector2(event.x // config.SECTOR_SIZE.x, event.y // config.SECTOR_SIZE.y))
-    for sector in sectors:
-        for obj in sector.objects:
-            if obj and check_point_circle(Vector2(event.x, event.y).hash(), obj.pos.hash(), obj.radius):
-                print(f"Clicked on: {obj}")
-                return
+    for obj in sector.objects:
+        if obj and check_point_circle(Vector2(event.x, event.y).hash(), obj.pos.hash(), obj.radius):
+            print(f"Clicked on: {obj}")
+            return
     
-    print(f"Clicked on: {world.sectors.get(Vector2(event.x // config.SECTOR_SIZE.x, event.y // config.SECTOR_SIZE.y))}")
+    print(f"Clicked on: {sector}")
 canvas.bind("<Button-1>", on_left_click)
 
 
 # On right click, mark an object to be monitored
 def on_right_click(event):
     clear_monitoring()
-    sectors = world.sectors.get_sectors_around(Vector2(event.x // config.SECTOR_SIZE.x, event.y // config.SECTOR_SIZE.y))
+    sector = world.sectors.get(Vector2(event.x // config.SECTOR_SIZE.x, event.y // config.SECTOR_SIZE.y))
 
-    for sector in sectors:
-        for obj in sector.objects:
-            if obj and check_point_circle(Vector2(event.x, event.y).hash(), obj.pos.hash(), obj.radius):
-                print(f"Now monitoring:")
-                config.monitoring = obj
-                config.monitoringString = str(config.monitoring)
-                print(config.monitoringString)
-                return
+    for obj in sector.objects:
+        if obj and check_point_circle(Vector2(event.x, event.y).hash(), obj.pos.hash(), obj.radius):
+            print(f"Now monitoring:")
+            config.monitoring = obj
+            config.monitoring.strokeColor.b = 255
+            config.monitoringString = str(config.monitoring)
+            print(config.monitoringString)
+            return
     
     print(f"Now monitoring:")
-    config.monitoring = world.sectors.get(Vector2(event.x // config.SECTOR_SIZE.x, event.y // config.SECTOR_SIZE.y))
+    config.monitoring = sector
     config.monitoringString = str(config.monitoring)
     print(config.monitoringString)
 canvas.bind("<Button-3>", on_right_click)
@@ -135,3 +135,4 @@ if __name__ == "__main__":
         ft = time.time() - t
         time.sleep(max(0, config.TARGET_FRAMERATE - ft))
         dt = max(config.TARGET_FRAMERATE, ft)
+    sys.exit(0)

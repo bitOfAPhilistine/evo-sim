@@ -17,12 +17,14 @@ class Plant(GameObject):
         
         self.genome = Genome() if genome is None else genome
 
-        super().__init__(world, pos, self.genome.maxRadius * config.SEED_SIZE_FACTOR, self.genome.color, Color(255, 255, 255))
+        super().__init__(world, pos, self.genome.maxRadius * config.SEED_SIZE_FACTOR, self.genome.color)
 
         self.isMutant = isMutant
         self.updateableIndex = world.updateable.add(self)
-        self.sectorOverlaps = world.request_overlaps(self)
+        self.lastUpdated = time.time()
+        self.sectorOverlaps = [1.0 / len(self.sectors) for _ in self.sectors]
         self.queued = False
+        world.request_overlaps(self)
         self.world.plantCount += 1
 
         self.baseColor = self.genome.color
@@ -37,7 +39,7 @@ class Plant(GameObject):
         self.growthRate = self.maxRadius * 0.9 / (self.lifespan / self.growthSpeed * (1.5 - self.rootDepth))
         self.seedSize = self.maxRadius * config.SEED_SIZE_FACTOR
         self.seedForce = self.seedSpeed * (self.seedSize ** 2 * math.pi)
-        self.seedCost = math.log10(self.seedSpeed) * (self.seedSize ** 2 * math.pi)
+        self.seedCost = (math.log10(self.seedSpeed) * (self.seedSize ** 2 * math.pi)) if self.seedSpeed > 0.0 else 0.0
 
         self.lifeLeft = self.lifespan
         self.health = 100.0
@@ -51,7 +53,8 @@ class Plant(GameObject):
     Radius: {self.radius:.2f}
     Area: {self.area:.2f}
     Sector Overlaps:
-    {'\n    '.join(map(str, self.sectorOverlaps))}
+    {'\n    '.join(map(str, zip(map(lambda x: x.sectorPos, self.sectors), self.sectorOverlaps)))}
+    Is Queued: {self.queued}
     Is Mutant: {self.isMutant}
     ---Genome---
     {self.genome}
@@ -76,15 +79,19 @@ class Plant(GameObject):
 
     def update_sectors(self):
         super().update_sectors()
-        if list(self.sectors) == 1:
+
+        if len(self.sectors) == 1:
             self.sectorOverlaps = [1.0]
             return
         
         if not self.queued:
             self.world.request_overlaps(self)
-            self.queued = True
+        
+        if len(self.sectorOverlaps) != len(self.sectors):
+            self.sectorOverlaps = [1.0 / len(self.sectors) for _ in self.sectors]
 
-    def update(self, dt, canvas: Canvas):
+    def update(self, canvas: Canvas):
+        dt = min(config.TARGET_FRAMERATE * 10.0, time.time() - self.lastUpdated)
         self.lifeLeft -= dt
         self.nutrients -= dt * self.area
 
@@ -109,22 +116,11 @@ class Plant(GameObject):
         elif self.health < 100.0:
             self.health = min(100.0, self.health + dt * self.growthSpeed)
             self.nutrients -= dt * self.growthSpeed
-
-            self.strokeWidth = math.floor(self.radius * (1.0 - (self.health / 100.0)))
         
         if self.health >= self.healthThresh:
             if self.radius < self.maxRadius:
                 self.radius = min(self.maxRadius, self.radius + dt * self.growthRate)
                 self.maxNutrients = self.area
-
-                preSOTime = time.time()
-                self.sectorOverlaps, didQuadtree = self.world.sectors.get_overlap(self.pos.hash(), self.radius, config.areaCalcPrecision)
-                sOTimeTaken = time.time() - preSOTime
-
-                if sOTimeTaken > config.TARGET_FRAMERATE / 2.0 and config.areaCalcPrecision > config.MIN_AREA_CALC_PRECISION:
-                    config.areaCalcPrecision -= 1
-                elif sOTimeTaken < config.TARGET_FRAMERATE / (self.world.plantCount + 1) and didQuadtree and config.areaCalcPrecision < config.MAX_AREA_CALC_PRECISION:
-                    config.areaCalcPrecision += 1
                 
                 self.nutrients -= dt * self.growthRate
             elif self.nutrients > self.seedCost and rand.random() < 1.0 / (self.world.seedCount + 1):
@@ -144,7 +140,7 @@ class Plant(GameObject):
         if self.nutrients < self.maxNutrients:
             nutrientsWanted = max(0, min(self.maxNutrients - self.nutrients, dt * self.area * self.photoFactor))
 
-            for sector, overlap in rand.shuffle(list(zip(self.sectors, self.sectorOverlaps, strict=True))):
+            for sector, overlap in list(zip(self.sectors, self.sectorOverlaps, strict=True)):
                 available = 0.0
 
                 if sector.nutrients > 1.0 - self.rootDepth:
@@ -158,6 +154,11 @@ class Plant(GameObject):
                 if nutrientsWanted <= 0.0 or self.nutrients >= self.maxNutrients:
                     self.nutrients = min(self.nutrients, self.maxNutrients)
                     break
+        
+        self.strokeColor.r = int(255 - self.health / 100.0 * 255)
+        self.strokeColor.g = int(255 - self.nutrients / self.maxNutrients * 255)
+
+        self.lastUpdated = time.time()
 
 
 class Seed(PhysicsObject):
@@ -190,8 +191,8 @@ class Seed(PhysicsObject):
 
         self.world.seedCount -= 1
 
-    def update(self, dt, canvas: Canvas):
-        super().update(dt, canvas)
+    def update(self, canvas: Canvas):
+        super().update(canvas)
 
         if self.velocity.magnitude() <= 0.5:
             Plant(

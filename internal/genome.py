@@ -47,8 +47,9 @@ class Genome:
             return newGenome
         
         setattr(newGenome, mutationTrait, getattr(newGenome, mutationTrait) + ranges[mutationTrait] * mutationAmount)
-        newGenome.clamp()
 
+        newGenome.clamp()
+        
         return newGenome
     
     def clamp(self):

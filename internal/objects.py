@@ -5,7 +5,7 @@ from internal.world import Sector, Sectors, World
 from internal.color import Color
 from internal.funcs import clamp, check_point_circle
 
-import random, math, config
+import random, math, config, time
 
 
 # Base object with basic properties
@@ -15,8 +15,8 @@ class GameObject:
         self.pos = pos
         self.area: float
         self.radius = radius
-        self.color = color
-        self.strokeColor = strokeColor
+        self.color = color.copy()
+        self.strokeColor = strokeColor.copy()
         self.strokeWidth = strokeWidth
         self.shape = None
         self.objectIndex = world.objects.add(self)
@@ -45,8 +45,8 @@ class GameObject:
             canvas.delete(self.shape)
         
         self.shape = canvas.create_oval(
-            self.pos.x - (self.radius - math.ceil(self.strokeWidth / 2)), self.pos.y - (self.radius - math.ceil(self.strokeWidth / 2)),
-            self.pos.x + (self.radius - math.ceil(self.strokeWidth / 2)), self.pos.y + (self.radius - math.ceil(self.strokeWidth / 2)),
+            self.pos.x - self.radius, self.pos.y - self.radius,
+            self.pos.x + self.radius, self.pos.y + self.radius,
             fill=self.color.to_hex(),
             outline=self.strokeColor.to_hex(),
             width=self.strokeWidth
@@ -87,6 +87,7 @@ class PhysicsObject(GameObject):
         self.velocity = Vector2(0, 0)
         self.acceleration = Vector2(0, 0)
         self.updateableIndex = world.updateable.add(self)
+        self.lastUpdated = time.time()
     
     def delete(self, canvas: Canvas):
         super().delete(canvas)
@@ -118,7 +119,9 @@ class PhysicsObject(GameObject):
             self.velocity.y *= -1
             self.pos.y = max(self.radius, min(config.CANVAS_SIZE.y - self.radius, self.pos.y))
 
-    def update(self, dt, canvas: Canvas):
+    def update(self, canvas: Canvas):
+        dt = min(config.TARGET_FRAMERATE * 10.0, time.time() - self.lastUpdated)
+
         self.apply_force(self.velocity.scale(-1).scale(self.drag))
 
         sectorsToCheck = self.sectors
@@ -132,3 +135,5 @@ class PhysicsObject(GameObject):
         self.pos += self.velocity.scale(dt)
         self.acceleration = Vector2(0)
         self.check_bounds()
+
+        self.lastUpdated = time.time()

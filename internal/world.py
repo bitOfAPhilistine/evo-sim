@@ -47,8 +47,9 @@ class Sector:
             [HashVector2(self.bounds[1].x, self.bounds[1].y), False]
         ]
         sectorCorners = tuple(map(lambda x: (x[0], check_point_circle(x[0], pos.hash(), radius)), sectorCorners))
+        dividedGridSizes = tuple([4 ** i for i in range(precision + 1)])
 
-        return grid_border_search(sectorCorners, pos.hash(), tuple([4 ** i for i in range(precision + 1)]))
+        return grid_border_search(sectorCorners, pos.hash(), radius, dividedGridSizes)
 
 class Sectors:
     def __init__(self):
@@ -57,10 +58,10 @@ class Sectors:
         self.sectorSize = config.SECTOR_SIZE
         self.sectorArea = config.SECTOR_SIZE.x * config.SECTOR_SIZE.y
         self.sectors: list[list[Sector | None]] = [[None for _ in range(self.width)] for _ in range(self.height)]
-        self.lastUpdated = 0.0
+        self.lastUpdated = time.time()
 
         for _ in range(config.SECTOR_BLUR_LEVEL):
-            initTiles = [[rand.random() for _ in range(self.width)] for _ in range(self.height)]
+            initTiles = [[rand.uniform(0.0, 1.0) for _ in range(self.width)] for _ in range(self.height)]
             for y in range(self.height):
                 for x in range(self.width):
                     neighborNuts = []
@@ -83,14 +84,14 @@ class Sectors:
     def get_overlapping(self, pos: Vector2, radius: float) -> list[Sector]:
         bounds = (Vector2(pos.x - radius, pos.y - radius), Vector2(pos.x + radius, pos.y + radius))
         sectors = [[Vector2(x, y) for y in range(
-            max(0, int(bounds[0].y) // self.sectorSize.y),
-            min(self.height, (int(bounds[1].y) // self.sectorSize.y) + 1)
+            max(0, int(bounds[0].y // self.sectorSize.y)),
+            min(self.height, int(bounds[1].y // self.sectorSize.y) + 1)
         )] for x in range(
-            max(0, int(bounds[0].x) // self.sectorSize.x),
-            min(self.width, (int(bounds[1].x) // self.sectorSize.x) + 1)
+            max(0, int(bounds[0].x // self.sectorSize.x)),
+            min(self.width, int(bounds[1].x // self.sectorSize.x) + 1)
         )]
 
-        if len(sectors) == 1:
+        if len(sectors) == 1 and len(sectors[0]) == 1:
             return [self.get(sectors[0][0])]
         
         output = []
@@ -114,8 +115,12 @@ class Sectors:
         for y in range(self.height):
             for x in range(self.width):
                 sector = self.sectors[y][x]
+
                 if sector.shape is not None:
                     canvas.delete(sector.shape)
+
+                if config.monitoring == sector:
+                    continue
                 
                 rgb = Color(
                     int((1 - sector.nutrients) * 255),
@@ -124,14 +129,28 @@ class Sectors:
                 )
 
                 sector.shape = canvas.create_rectangle(
-                    x * self.sectorSize.x, y * self.sectorSize.y,
-                    (x + 1) * self.sectorSize.x, (y + 1) * self.sectorSize.y,
+                    sector.bounds[0].x, sector.bounds[0].y,
+                    sector.bounds[1].x, sector.bounds[1].y,
                     fill=rgb.to_hex(),
                     outline=""
                 )
+        
+        if isinstance(config.monitoring, Sector):
+            rgb = Color(
+                int((1 - config.monitoring.nutrients) * 255),
+                int((0.95 - config.monitoring.nutrients * 1.25) * 255),
+                int((0.9 - config.monitoring.nutrients * 1.45) * 255)
+            )
+
+            config.monitoring.shape = canvas.create_rectangle(
+                config.monitoring.bounds[0].x, config.monitoring.bounds[0].y,
+                config.monitoring.bounds[1].x, config.monitoring.bounds[1].y,
+                fill=rgb.to_hex(),
+                outline="blue"
+            )
     
     def update(self):
-        dt = time.time() - self.lastUpdated
+        dt = min(config.TARGET_FRAMERATE * 10.0, time.time() - self.lastUpdated)
         prevTiles = copy.deepcopy(self.sectors)
         for y in range(self.height):
             for x in range(self.width):
@@ -157,7 +176,8 @@ class Sectors:
 class World():
     def __init__(self):
         self.objects: SmartList = SmartList()
-        self.updateable: SmartList = SmartList()   
+        self.updateable: SmartList = SmartList() 
+        self.updateable0Index: int = 0  
         self.sectors: Sectors = Sectors()
         self.species: list = []
         self.plantCount: int = 0
@@ -166,18 +186,13 @@ class World():
     
     def request_overlaps(self, object):
         self.overlapRequests.append(object)
+        object.queued = True
     
     def create_species(self, genome: Genome) -> int:
         self.species.append(genome)
     
     def update(self, canvas, dt, startTime):
         frameTime = 0.0
-        for obj in self.updateable:
-            if obj:
-                try:
-                    obj.update(dt, canvas)
-                except OverflowError:
-                    obj.delete(canvas)
         
         while frameTime < config.TARGET_FRAMERATE and len(self.overlapRequests) > 0:
             obj = self.overlapRequests.pop(0)
@@ -190,5 +205,26 @@ class World():
             obj.queued = False
             frameTime = time.time() - startTime
         
+        if len(self.updateable) > 0:
+            for i in [(self.updateable0Index + i) % len(self.updateable) for i in range(len(self.updateable))]:
+                if frameTime < config.TARGET_FRAMERATE * 2.0:
+                    obj = self.updateable[i]
+                    if obj:
+                        try:
+                            obj.update(canvas)
+                        except OverflowError:
+                            obj.delete(canvas)
+                    
+                    frameTime = time.time() - startTime
+                else:
+                    self.updateable0Index = (i + 1) % len(self.updateable)
+                    break
+        
         if frameTime < config.TARGET_FRAMERATE or time.time() - self.sectors.lastUpdated > config.maxTimeBetweenSectorSmoothing:
             self.sectors.update()
+        
+        frameTime = time.time() - startTime
+        if frameTime > config.TARGET_FRAMERATE * 5:
+            config.areaCalcPrecision = max(config.MIN_AREA_CALC_PRECISION, config.areaCalcPrecision - 1)
+        elif frameTime < config.TARGET_FRAMERATE:
+            config.areaCalcPrecision = min(config.MAX_AREA_CALC_PRECISION, config.areaCalcPrecision + 1)

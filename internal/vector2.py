@@ -8,7 +8,7 @@ class Vector2:
             if isinstance(x, tuple):
                 self.x, self.y = x[0], x[1]
             else:
-                self.x, self.y = x
+                self.x, self.y = x, x
 
     def __eq__(self, other) -> bool:
         return self.x == other.x and self.y == other.y
