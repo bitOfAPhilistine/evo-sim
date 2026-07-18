@@ -3,7 +3,9 @@ from internal.smartList import SmartList
 from internal.genome import Genome
 from internal.color import Color
 from internal.funcs import *
+from internal.profiler import profiler
 
+import internal.globals as globals
 import random as rand
 import config, copy, math, functools, time
 
@@ -16,6 +18,7 @@ neighbors = [
 ]
 
 class Sector:
+    @profiler
     def __init__(self, sectorPos: Vector2, size: Vector2, nutrients: float):
         self.objects = SmartList()
         self.sectorPos = sectorPos
@@ -26,20 +29,27 @@ class Sector:
         self.nutrients = nutrients
         self.baseNutrients = nutrients
         self.shape = None
+        self.rgb = Color(0, 0, 0)
     
-    def __repr__(self):
+    @profiler
+    def readout(self):
         return f'''Sector:
     Position: {self.sectorPos.x:.0f}, {self.sectorPos.y:.0f}
     Nutrients: {self.nutrients:.4f}
     Base Nutrients: {self.baseNutrients:.4f}'''
     
+    @profiler
     def add(self, item):
         return self.objects.add(item)
     
+    @profiler
     def remove(self, index: int):
         return self.objects.remove(index)
 
-    def get_overlap(self, pos: Vector2, radius: float, precision: int) -> float:
+    @profiler
+    @functools.cache
+    def get_overlap(self, posx: float, posy: float, radius: float, precision: int) -> float:
+        pos = Vector2(posx, posy)
         sectorCorners = [
             [Vector2(self.bounds[0].x, self.bounds[0].y), False],
             [Vector2(self.bounds[1].x, self.bounds[0].y), False],
@@ -47,11 +57,31 @@ class Sector:
             [Vector2(self.bounds[1].x, self.bounds[1].y), False]
         ]
         sectorCorners = tuple(map(lambda x: (x[0], check_point_circle(x[0], pos, radius)), sectorCorners))
-        dividedGridSizes = tuple([4 ** i for i in range(precision + 1)])
 
-        return grid_border_search(sectorCorners, pos, radius, dividedGridSizes)
+        return grid_border_search(sectorCorners, pos, radius, divided_grid_sizes(precision))
+    
+    @profiler
+    def draw(self, canvas, isMonitored):
+        rgb = Color(
+            int((1 - self.nutrients) * 255),
+            int((0.95 - self.nutrients * 1.25) * 255),
+            int((0.9 - self.nutrients * 1.45) * 255)
+        )
+
+        if self.rgb != rgb or isMonitored:
+            if self.shape is not None:
+                canvas.delete(self.shape)
+
+            self.shape = canvas.create_rectangle(
+                self.bounds[0].x, self.bounds[0].y,
+                self.bounds[1].x, self.bounds[1].y,
+                fill=rgb.to_hex(),
+                outline="blue" if isMonitored else ""
+            )
+            self.rgb = rgb
 
 class Sectors:
+    @profiler
     def __init__(self):
         self.width = config.CANVAS_SIZE.x // config.SECTOR_SIZE.x
         self.height = config.CANVAS_SIZE.y // config.SECTOR_SIZE.y
@@ -74,13 +104,14 @@ class Sectors:
                         avg = (initTiles[y][x] + sum(neighborNuts) / len(neighborNuts)) / 2
                         self.sectors[y][x] = Sector(Vector2(x, y), config.SECTOR_SIZE, avg)
 
-    
+    @profiler
     def get(self, pos: Vector2) -> Sector | None:
         if 0 <= pos.x < self.width and 0 <= pos.y < self.height:
             return self.sectors[pos.y][pos.x]
         else:
             return None
     
+    @profiler
     def get_overlapping(self, pos: Vector2, radius: float) -> list[Sector]:
         bounds = (Vector2(pos.x - radius, pos.y - radius), Vector2(pos.x + radius, pos.y + radius))
         sectors = [[Vector2(x, y) for y in range(
@@ -101,54 +132,30 @@ class Sectors:
                     output.append(self.get(sector))
         return output
     
+    @profiler
     def add_to_sectors(self, object, sectors: list[Sector]) -> list[int]:
         output = []
         for sector in sectors:
             output.append(sector.add(object))
         return output
     
+    @profiler
     def remove_from_sectors (self, sectors: list[Sector], indices: list[int]):
         for sector, index in zip(sectors, indices, strict=True):
             sector.remove(index)
     
+    @profiler
     def draw(self, canvas):
         for y in range(self.height):
             for x in range(self.width):
                 sector = self.sectors[y][x]
-
-                if sector.shape is not None:
-                    canvas.delete(sector.shape)
-
-                if config.monitoring == sector:
-                    continue
-                
-                rgb = Color(
-                    int((1 - sector.nutrients) * 255),
-                    int((0.95 - sector.nutrients * 1.25) * 255),
-                    int((0.9 - sector.nutrients * 1.45) * 255)
-                )
-
-                sector.shape = canvas.create_rectangle(
-                    sector.bounds[0].x, sector.bounds[0].y,
-                    sector.bounds[1].x, sector.bounds[1].y,
-                    fill=rgb.to_hex(),
-                    outline=""
-                )
+                if globals.monitoring != sector:
+                    sector.draw(canvas, False)
         
-        if isinstance(config.monitoring, Sector):
-            rgb = Color(
-                int((1 - config.monitoring.nutrients) * 255),
-                int((0.95 - config.monitoring.nutrients * 1.25) * 255),
-                int((0.9 - config.monitoring.nutrients * 1.45) * 255)
-            )
-
-            config.monitoring.shape = canvas.create_rectangle(
-                config.monitoring.bounds[0].x, config.monitoring.bounds[0].y,
-                config.monitoring.bounds[1].x, config.monitoring.bounds[1].y,
-                fill=rgb.to_hex(),
-                outline="blue"
-            )
+        if isinstance(globals.monitoring, Sector):
+            globals.monitoring.draw(canvas, True)
     
+    @profiler
     def update(self):
         dt = min(config.TARGET_FRAMERATE * 10.0, time.time() - self.lastUpdated)
         prevTiles = [[self.get(Vector2(x, y)).nutrients for y in range(self.height)] for x in range(self.width)]
@@ -175,6 +182,7 @@ class Sectors:
         self.lastUpdated = time.time()
 
 class World():
+    @profiler
     def __init__(self):
         self.objects: SmartList = SmartList()
         self.updateable: SmartList = SmartList() 
@@ -185,13 +193,16 @@ class World():
         self.seedCount: int = 0
         self.overlapRequests: list = []
     
+    @profiler
     def request_overlaps(self, obj):
         self.overlapRequests.append(obj)
         obj.queued = True
     
+    @profiler
     def create_species(self, genome: Genome) -> int:
         self.species.append(genome)
     
+    @profiler
     def update(self, canvas, dt, startTime):
         frameTime = 0.0
         
@@ -200,7 +211,7 @@ class World():
             overlaps = [0.0 for _ in obj.sectors]
 
             for i in range(len(obj.sectors)):
-                overlaps[i] = obj.sectors[i].get_overlap(obj.pos, obj.radius, config.areaCalcPrecision) * self.sectors.sectorArea / obj.area
+                overlaps[i] = obj.sectors[i].get_overlap(obj.pos.x, obj.pos.y, obj.radius, config.areaCalcPrecision) * self.sectors.sectorArea / obj.area
             
             obj.sectorOverlaps = overlaps
             obj.queued = False

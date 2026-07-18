@@ -1,6 +1,8 @@
 from internal.color import Color
-from internal.funcs import clamp, rand_curve
+from internal.funcs import *
+from internal.profiler import profiler
 
+import internal.globals as globals
 import random as rand
 import copy, config
 
@@ -16,6 +18,7 @@ ranges = {
 }
 
 class Genome:
+    @profiler
     def __init__(self):
         self.color: Color = Color(rand.randint(0, 255), rand.randint(0, 255), rand.randint(0, 255))
         self.maxRadius: float = rand.uniform(config.MIN_PLANT_RADIUS, config.MAX_PLANT_RADIUS)
@@ -25,7 +28,8 @@ class Genome:
         self.lifespan: float = rand.uniform(config.MIN_LIFESPAN, config.MAX_LIFESPAN)
         self.healthThresh: float = rand.uniform(0.0, 100.0)
     
-    def __repr__(self):
+    @profiler
+    def readout(self):
         return f'''Base Color: {self.color}
     Max Radius: {self.maxRadius:.2f}
     Growth Speed: {self.growthSpeed:.2f}
@@ -34,6 +38,7 @@ class Genome:
     Lifespan: {self.lifespan:.2f}
     Health Threshold: {self.healthThresh:.2f}'''
     
+    @profiler
     def mutate(self):
         newGenome = copy.deepcopy(self)
 
@@ -52,6 +57,7 @@ class Genome:
         
         return newGenome
     
+    @profiler
     def clamp(self):
         self.maxRadius = clamp(self.maxRadius, config.MIN_PLANT_RADIUS, config.MAX_PLANT_RADIUS)
         self.growthSpeed = clamp(self.growthSpeed, 1.0, config.MAX_GROWTH_SPEED)

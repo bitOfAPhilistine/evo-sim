@@ -1,8 +1,12 @@
+from internal.profiler import profiler
+
 class SmartList(list):
+    @profiler
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._freedIndices = []
 
+    @profiler
     def add(self, item) -> int:
         if len(self._freedIndices) > 0:
             index = self._freedIndices.pop(0)
@@ -14,6 +18,7 @@ class SmartList(list):
             self.append(item)
             return len(self) - 1
     
+    @profiler
     def remove(self, index: int):
         if index < 0 or index >= len(self):
             raise IndexError("Index out of bounds")

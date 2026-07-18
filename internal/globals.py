@@ -1,0 +1,9 @@
+monitoring = None
+monitoringString = ""
+running = True
+debug = False
+profiling = False
+profilerTimes = {}
+profiledFrameTimes = {}
+profilerFuncStack = []
+lagSpikeLog = ""

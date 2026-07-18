@@ -34,11 +34,6 @@ MAX_SEED_SPEED = 100.0
 MIN_LIFESPAN = 30.0
 MAX_LIFESPAN = 300.0
 
-# Global Runtime and Derived Variables (DO NOT EDIT)
-monitoring = None
-running = True
-debug = False
-debugDeletionList = []
+# Derived values, do not edit
 areaCalcPrecision = MAX_AREA_CALC_PRECISION
-monitoringString = ""
 maxTimeBetweenSectorSmoothing = TARGET_FRAMERATE * SECTOR_MAX_FRAMES_BETWEEN_SMOOTH

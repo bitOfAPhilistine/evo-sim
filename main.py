@@ -1,14 +1,16 @@
 from tkinter import Canvas, Tk, ttk, TclError
 from internal.color import Color
 from internal.plants import Plant
-from internal.world import Sectors, World
+from internal.world import Sector, Sectors, World
 from internal.smartList import SmartList
 from internal.vector2 import Vector2
 from internal.objects import GameObject, PhysicsObject
-from internal.funcs import check_point_circle
+from internal.funcs import *
+from internal.profiler import profiler
 
+import internal.globals as globals
 import random as rand
-import config, time, sys, gc
+import config, time, sys, gc, getopt
 
 
 # Initialize the main window
@@ -22,22 +24,71 @@ canvas = Canvas(frame, width=config.CANVAS_SIZE.x, height=config.CANVAS_SIZE.y, 
 frame.pack()
 canvas.pack()
 
-def clear_monitoring():
-    if config.monitoring != None:
-        for _ in config.monitoringString.split('\n'):
-            print(config.LINE_UP, end=config.LINE_CLEAR)
-        config.monitoringString = str(config.monitoring)
-        print(config.monitoringString)
-        if isinstance(config.monitoring, GameObject):
-            config.monitoring.strokeColor.b = 0
-        config.monitoring = None
+# Process arguments
+args = sys.argv[1:]
+options = "hdp"
+longOptions = ["Help", "Debug", "Profiler"]
+helpMsg = '''Terminal Args:
+-h or --Help: prints this message
+-d or --Debug: enable debug printing
+-p or --Profiler: enable profiler
 
+In-Sim Controls:
+Left-Click: prints stats of the thing clicked on
+Right-Click: continuously prints stats of the thing clicked on until something else is selected'''
+try:
+    args, _ = getopt.getopt(args, options, longOptions)
+    for arg, _ in args:
+        match arg:
+            case '-h' | "--Help":
+                globals.running = False
+                print(helpMsg)
+                sys.exit(0)
+            case '-d' | "--Debug":
+                globals.debug = True
+            case '-p' | "--Profiler":
+                globals.profiling = True
+except getopt.error as err:
+    print(str(err))
+
+@profiler
+def clear_monitoring():
+    if globals.monitoring != None:
+        for _ in globals.monitoringString.split('\n'):
+            print(config.LINE_UP, end=config.LINE_CLEAR)
+        globals.monitoringString = globals.monitoring.readout()
+        print(globals.monitoringString)
+        if isinstance(globals.monitoring, GameObject):
+            globals.monitoring.strokeColor.b = 0
+        elif isinstance(globals.monitoring, Sector):
+            globals.monitoring.draw(canvas, False)
+        globals.monitoring = None
+
+def profilerTimes_to_string(times, parentTotal = 1.0, depth = 0) -> str:
+    output: str = ""
+    sortedTimes = sorted(times, key=lambda x: times[x].totalTime, reverse=True)
+    for func in sortedTimes:
+        data = times[func]
+        output += f"{"  " * depth}{func.__qualname__}: called {data.callCount} times, total {data.totalTime}s taken, average {data.avgTime}s, max {data.maxTime}{f", percentage of parent time: {data.totalTime / parentTotal * 100.0:.2f}%" if depth > 0 else ''}\n"
+        if len(data.children) > 0:
+            output += profilerTimes_to_string(data.children, data.totalTime, depth + 1)
+    return output
+
+def profiledFrameTimes_to_string(ft) -> str:
+    output: str = f"Frame Time: {ft}:\n"
+    sortedTimes = sorted(globals.profiledFrameTimes, key=lambda x: globals.profiledFrameTimes[x].totalTime, reverse=True)
+    for func in sortedTimes:
+        data = globals.profiledFrameTimes[func]
+        output += f"{func.__qualname__}: called {data.callCount} times, total {data.totalTime}s taken\n"
+    return output
+
+
+@profiler
 def initialize():
+    clear_monitoring()
     print("Initializing world...")
     global world
     world = World()
-
-    clear_monitoring()
 
     # Add randomly placed plants
     for _ in range(config.STARTING_PLANTS):
@@ -46,65 +97,88 @@ def initialize():
             pos=Vector2(rand.uniform(0, config.CANVAS_SIZE.x), rand.uniform(0, config.CANVAS_SIZE.y))
         )
 
+
 def on_closing(event=None):
     clear_monitoring()
     print("Closing window")
-    config.running = False
+    globals.running = False
     root.destroy()
+    if len(globals.profilerTimes) > 0:
+        with open("internal/profiler.txt", 'w') as f:
+            s = profilerTimes_to_string(globals.profilerTimes)
+            s += "\n\nLag Spikes:" + globals.lagSpikeLog
+            f.write(s)
 root.protocol("WM_DELETE_WINDOW", on_closing)
 
 
 # On left click, check for an object at the clicked position and print its details
+@profiler
 def on_left_click(event):
     clear_monitoring()
     sector = world.sectors.get(Vector2(event.x // config.SECTOR_SIZE.x, event.y // config.SECTOR_SIZE.y))
 
     for obj in sector.objects:
         if obj and check_point_circle(Vector2(event.x, event.y), obj.pos, obj.radius):
-            print(f"Clicked on: {obj}")
+            print(f"Clicked on: {obj.readout()}")
             return
     
-    print(f"Clicked on: {sector}")
+    print(f"Clicked on: {sector.readout()}")
 canvas.bind("<Button-1>", on_left_click)
 
 
 # On right click, mark an object to be monitored
+@profiler
 def on_right_click(event):
     clear_monitoring()
-    if not config.debug:
+    if not globals.debug:
         sector = world.sectors.get(Vector2(event.x // config.SECTOR_SIZE.x, event.y // config.SECTOR_SIZE.y))
 
         for obj in sector.objects:
             if obj and check_point_circle(Vector2(event.x, event.y), obj.pos, obj.radius):
                 print(f"Now monitoring:")
-                config.monitoring = obj
-                config.monitoring.strokeColor.b = 255
-                config.monitoringString = str(config.monitoring)
-                print(config.monitoringString)
+                globals.monitoring = obj
+                globals.monitoring.strokeColor.b = 255
+                globals.monitoringString = globals.monitoring.readout()
+                print(globals.monitoringString)
                 return
         
         print(f"Now monitoring:")
-        config.monitoring = sector
-        config.monitoringString = str(config.monitoring)
-        print(config.monitoringString)
+        globals.monitoring = sector
+        globals.monitoringString = globals.monitoring.readout()
+        print(globals.monitoringString)
 canvas.bind("<Button-3>", on_right_click)
 
 
 # On r, reinitialize the world
+@profiler
 def on_r(event):
+    clear_monitoring()
     print("Manual restart, resetting world...")
     initialize()
 root.bind("<r>", on_r)
 
-
+'''
 # On d, toggle debug printing
 def on_d(event):
-    config.debug = not config.debug
+    globals.debug = not globals.debug
     clear_monitoring()
-    print("Debug printing activated" if config.debug else "Debug printing deactivated")
+    print("Debug printing activated" if globals.debug else "Debug printing deactivated")
 root.bind("<d>", on_d)
 
 
+# On p, toggle the profiler
+def on_p(event):
+    globals.profiling = not globals.profiling
+    clear_monitoring()
+    if globals.profiling:
+        print("Profiling activated")
+    else: 
+        print("Profiling deactivated")
+        print(f"{profilerTimes_to_string(globals.profilerTimes)}")
+root.bind("<p>", on_p)
+'''
+
+@profiler
 def main(dt, startTime):
     if len(world.objects) == 0:
         print("Mass extinction event, resetting world...")
@@ -121,24 +195,17 @@ def main(dt, startTime):
             except Exception as e:
                 print(f"Error drawing obj: {obj}\n{e}")
     
-    if config.monitoring != None:
-        for _ in config.monitoringString.splitlines():
+    if globals.monitoring != None:
+        for _ in globals.monitoringString.splitlines():
             print(config.LINE_UP, end=config.LINE_CLEAR)
-        config.monitoringString = str(config.monitoring)
-        print(config.monitoringString)
-    
-    if len(config.debugDeletionList) > 0:
-        print(f"Deleted objects: {list(map(object.__repr__, config.debugDeletionList))}")
-        print(f"Ref counts: {list(map(sys.getrefcount, config.debugDeletionList))}")
-        referrers = list(map(gc.get_referrers, config.debugDeletionList))
-        print(f"Referrers: {referrers}")
-        config.debugDeletionList = []
+        globals.monitoringString = globals.monitoring.readout()
+        print(globals.monitoringString)
 
 
-if __name__ == "__main__":
+if __name__ == "__main__" and globals.running:
     dt = config.TARGET_FRAMERATE
     initialize()
-    while config.running:
+    while globals.running:
         t = time.time()
 
         main(dt, t)
@@ -149,6 +216,14 @@ if __name__ == "__main__":
             break
 
         ft = time.time() - t
+        if len(globals.profiledFrameTimes) > 0:
+            if ft > config.TARGET_FRAMERATE * 5:
+                print("Lag spike:")
+                s = profiledFrameTimes_to_string(ft)
+                print(s)
+                globals.lagSpikeLog += '\n\n' + s
+            globals.profiledFrameTimes = {}
+
         time.sleep(max(0, config.TARGET_FRAMERATE - ft))
         dt = max(config.TARGET_FRAMERATE, ft)
     sys.exit(0)

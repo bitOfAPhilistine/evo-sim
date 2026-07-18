@@ -1,23 +1,30 @@
 from internal.vector2 import Vector2
+from internal.profiler import profiler
 
 import random as rand
+import functools
 
 
+@profiler
 def clamp(value, min_value, max_value):
     return max(min_value, min(value, max_value))
 
+@profiler
 def rand_curve(min: float, max: float, weight: int = 2) -> float:
     total = 0
     for _ in range(weight):
         total += rand.uniform(min, max)
     return total / weight
 
+@profiler
 def check_point_rect(point: Vector2, minCorner: Vector2, maxCorner: Vector2) -> bool:
     return minCorner <= point <= maxCorner
 
+@profiler
 def check_point_circle(point: Vector2, center: Vector2, radius: float) -> bool:
     return (point.x - center.x) ** 2 + (point.y - center.y) ** 2 <= radius ** 2
 
+@profiler
 def check_rect_circle(minCorner: Vector2, maxCorner: Vector2, center: Vector2, radius: float) -> bool:
     closest = Vector2(max(minCorner.x, min(center.x, maxCorner.x)), max(minCorner.y, min(center.y, maxCorner.y)))
 
@@ -25,7 +32,12 @@ def check_rect_circle(minCorner: Vector2, maxCorner: Vector2, center: Vector2, r
 
     return dif.x ** 2 + dif.y ** 2 <= radius ** 2
 
+@functools.cache
+def divided_grid_sizes(precision) -> tuple[int]:
+    return tuple([4 ** i for i in range(precision + 1)])
+
 # Recursive internal function to figure out overlap
+@profiler
 def grid_border_search(outerCorners: tuple[
     tuple[Vector2, bool],
     tuple[Vector2, bool],

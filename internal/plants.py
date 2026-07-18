@@ -7,12 +7,15 @@ from internal.objects import GameObject, PhysicsObject
 from internal.genome import Genome
 from internal.color import Color
 from internal.funcs import *
+from internal.profiler import profiler
 
+import internal.globals as globals
 import random as rand
 import config, time
 
 
 class Plant(GameObject):
+    @profiler
     def __init__(self, world: World, pos: Vector2, genome: Genome = None, isMutant = False):
         
         self.genome = Genome() if genome is None else genome
@@ -46,7 +49,8 @@ class Plant(GameObject):
         self.nutrients = 0.0
         self.maxNutrients = self.area
     
-    def __repr__(self):
+    @profiler
+    def readout(self):
         return f'''Plant:
     Position: {self.pos.x:.2f}, {self.pos.y:.2f}
     Color: {self.color}
@@ -57,7 +61,7 @@ class Plant(GameObject):
     Is Queued: {self.queued}
     Is Mutant: {self.isMutant}
     ---Genome---
-    {self.genome}
+    {self.genome.readout()}
     ---Derived---
     Photo Factor: {self.photoFactor:.2f}
     Growth Rate: {self.growthRate:.2f}
@@ -70,6 +74,7 @@ class Plant(GameObject):
     Health: {self.health:.2f}
     Nutrients: {self.nutrients:.2f}/{self.maxNutrients:.2f}'''
     
+    @profiler
     def delete(self, canvas: Canvas):
         super().delete(canvas)
         if self.updateableIndex is not None:
@@ -77,6 +82,7 @@ class Plant(GameObject):
         
         self.world.plantCount -= 1
 
+    @profiler
     def update_sectors(self):
         super().update_sectors()
 
@@ -90,6 +96,7 @@ class Plant(GameObject):
         if len(self.sectorOverlaps) != len(self.sectors):
             self.sectorOverlaps = [1.0 / len(self.sectors) for _ in self.sectors]
 
+    @profiler
     def update(self, canvas: Canvas):
         dt = min(config.TARGET_FRAMERATE * 10.0, time.time() - self.lastUpdated)
 
@@ -163,6 +170,7 @@ class Plant(GameObject):
 
 
 class Seed(PhysicsObject):
+    @profiler
     def __init__(self, world: World, pos: Vector2, radius: float, genome: Genome):
         super().__init__(world, pos, radius, Color(145, 45, 30), math.pi * radius ** 2, config.SEED_DRAG)
 
@@ -178,20 +186,23 @@ class Seed(PhysicsObject):
         if self.genome == None:
             raise Exception("seed lacks genome")
     
-    def __repr__(self):
+    @profiler
+    def readout(self):
         return f'''Seed:
     Position: {self.pos}
     Radius: {self.radius:.2f}
     Velocity: {self.velocity}
     Is Mutant: {self.isMutant}
     ---Genome---
-    {self.genome}'''
+    {self.genome.readout()}'''
 
+    @profiler
     def delete(self, canvas: Canvas):
         super().delete(canvas)
 
         self.world.seedCount -= 1
 
+    @profiler
     def update(self, canvas: Canvas):
         super().update(canvas)
 

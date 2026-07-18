@@ -4,12 +4,15 @@ from internal.smartList import SmartList
 from internal.world import Sector, Sectors, World
 from internal.color import Color
 from internal.funcs import *
+from internal.profiler import profiler
 
+import internal.globals as globals
 import random, math, config, time, sys, gc
 
 
 # Base object with basic properties
 class GameObject:
+    @profiler
     def __init__(self, world: World, pos: Vector2, radius: float, color: Color, strokeColor: Color = Color(0, 0, 0), strokeWidth: int = 1):
         self.world = world
         self.pos = pos
@@ -23,24 +26,22 @@ class GameObject:
         self.sectors = self.world.sectors.get_overlapping(self.pos, self.radius)
         self.sectorIndices = self.world.sectors.add_to_sectors(self, self.sectors)
 
-        if config.debug:
+        if globals.debug:
             print(f"Created: {object.__repr__(self)}")
     
+    @profiler
     def __setattr__(self, name, value):
         object.__setattr__(self, name, value)
 
         if name == 'radius':
             object.__setattr__(self, 'area', self.radius ** 2 * math.pi)
-            try:
+            if self.can_update_sectors():
                 self.update_sectors()
-            except:
-                pass
         elif name == 'pos':
-            try:
+            if self.can_update_sectors():
                 self.update_sectors()
-            except:
-                pass
 
+    @profiler
     def draw(self, canvas: Canvas):
         if not canvas.winfo_exists():
             return
@@ -55,6 +56,7 @@ class GameObject:
             width=self.strokeWidth
         )
     
+    @profiler
     def update_sectors(self):
         newSectors = self.world.sectors.get_overlapping(self.pos, self.radius)
         if newSectors != self.sectors:
@@ -62,10 +64,14 @@ class GameObject:
             self.sectors = newSectors
             self.sectorIndices = self.world.sectors.add_to_sectors(self, self.sectors)
     
+    @profiler
+    def can_update_sectors(self):
+        return hasattr(self, 'pos') and hasattr(self, 'radius') and hasattr(self, 'sectors')
+    
+    @profiler
     def delete(self, canvas: Canvas):
-        if config.debug:
+        if globals.debug:
             print(f"Deleting: {object.__repr__(self)}")
-            config.debugDeletionList.append(self)
         
         if self.shape is not None and canvas.winfo_exists():
             canvas.delete(self.shape)
@@ -78,6 +84,7 @@ class GameObject:
 
 # Physics object
 class PhysicsObject(GameObject):
+    @profiler
     def __init__(self, 
                     world: World,
                     pos: Vector2, 
@@ -96,6 +103,7 @@ class PhysicsObject(GameObject):
         self.updateableIndex = world.updateable.add(self)
         self.lastUpdated = time.time()
     
+    @profiler
     def delete(self, canvas: Canvas):
         super().delete(canvas)
         if self.updateableIndex is not None:
@@ -104,10 +112,10 @@ class PhysicsObject(GameObject):
     def apply_force(self, force: Vector2):
         self.acceleration += force / self.mass
     
+    @profiler
     def check_collide(self, other, givenNormal=None):
         totalRadius = self.radius + other.radius
         if check_point_circle(self.pos, other.pos, totalRadius):
-            # print(f"Colliding {self} with {other}")
             normal = (self.pos - other.pos).normalize() if givenNormal is None else givenNormal
 
             if normal == Vector2(0, 0):
@@ -118,6 +126,7 @@ class PhysicsObject(GameObject):
             if isinstance(other, PhysicsObject) and givenNormal is None:
                 other.check_collide(self, normal.scale(-1))
     
+    @profiler
     def check_bounds(self):
         if self.pos.x < 0 + self.radius or self.pos.x > config.CANVAS_SIZE.x - self.radius:
             self.velocity.x *= -1
@@ -126,6 +135,7 @@ class PhysicsObject(GameObject):
             self.velocity.y *= -1
             self.pos.y = max(self.radius, min(config.CANVAS_SIZE.y - self.radius, self.pos.y))
 
+    @profiler
     def update(self, canvas: Canvas):
         dt = min(config.TARGET_FRAMERATE * 10.0, time.time() - self.lastUpdated)
 
