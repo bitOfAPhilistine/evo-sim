@@ -38,7 +38,7 @@ class Plant(GameObject):
         self.lifespan = self.genome.lifespan
         self.healthThresh = self.genome.healthThresh
         
-        self.photoFactor = sum(map(lambda mine, opt: (256 - mine) / (256 - opt), self.baseColor, config.OPTIMAL_PLANT_COLOR)) / 3
+        self.photoFactor = sum(map(lambda mine, opt: (256 - mine) / (256 - opt), self.baseColor, Color(*config.OPTIMAL_PLANT_COLOR))) / 3
         self.growthRate = self.maxRadius * 0.9 / (self.lifespan / self.growthSpeed * (1.5 - self.rootDepth))
         self.seedSize = self.maxRadius * config.SEED_SIZE_FACTOR
         self.seedForce = self.seedSpeed * (self.seedSize ** 2 * math.pi)
@@ -53,7 +53,6 @@ class Plant(GameObject):
     def readout(self):
         return f'''Plant:
     Position: {self.pos.x:.2f}, {self.pos.y:.2f}
-    Color: {self.color}
     Radius: {self.radius:.2f}
     Area: {self.area:.2f}
     Sector Overlaps:
@@ -81,6 +80,8 @@ class Plant(GameObject):
             self.world.updateable.remove(self.updateableIndex)
         
         self.world.plantCount -= 1
+        if self.beingMonitored:
+            globals.monitoring = None
 
     @profiler
     def update_sectors(self):

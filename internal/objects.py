@@ -25,6 +25,8 @@ class GameObject:
         self.objectIndex = world.objects.add(self)
         self.sectors = self.world.sectors.get_overlapping(self.pos, self.radius)
         self.sectorIndices = self.world.sectors.add_to_sectors(self, self.sectors)
+        self.beingMonitored = False
+        self.redraw = True
 
         if globals.debug:
             print(f"Created: {object.__repr__(self)}")
@@ -35,26 +37,47 @@ class GameObject:
 
         if name == 'radius':
             object.__setattr__(self, 'area', self.radius ** 2 * math.pi)
+        if name in ('radius', 'pos'):
             if self.can_update_sectors():
                 self.update_sectors()
-        elif name == 'pos':
-            if self.can_update_sectors():
-                self.update_sectors()
+        if name in ('radius', 'pos', 'color', 'strokeColor', 'strokeWidth'):
+            self.redraw = True
+    
+    @profiler
+    def readout(self):
+        return f'''GameObject:
+    Position: {self.pos.x:.2f}, {self.pos.y:.2f}
+    Color: {self.color}
+    Radius: {self.radius:.2f}
+    Area: {self.area:.2f}
+    Sector Overlaps:
+    {'\n    '.join(map(str, zip(map(lambda x: x.sectorPos, self.sectors), self.sectorOverlaps)))}'''
 
     @profiler
     def draw(self, canvas: Canvas):
-        if not canvas.winfo_exists():
-            return
-        if self.shape is not None:
-            canvas.delete(self.shape)
-        
-        self.shape = canvas.create_oval(
-            self.pos.x - self.radius, self.pos.y - self.radius,
-            self.pos.x + self.radius, self.pos.y + self.radius,
-            fill=self.color.to_hex(),
-            outline=self.strokeColor.to_hex(),
-            width=self.strokeWidth
-        )
+        if not self.shape:
+            self.shape = canvas.create_oval(
+                self.pos.x - self.radius, self.pos.y - self.radius, self.pos.x + self.radius, self.pos.y + self.radius,
+                fill=self.color.to_hex(),
+                outline=self.strokeColor.to_hex(),
+                width=self.strokeWidth
+            )
+        if self.redraw:
+            if not canvas.winfo_exists():
+                return
+            
+            canvas.coords(
+                self.shape,
+                (self.pos.x - self.radius, self.pos.y - self.radius, self.pos.x + self.radius, self.pos.y + self.radius)
+            )
+            canvas.itemconfig(
+                self.shape,
+                fill=self.color.to_hex(),
+                outline=self.strokeColor.to_hex(),
+                width=self.strokeWidth
+            )
+
+            self.redraw = False
     
     @profiler
     def update_sectors(self):
@@ -87,10 +110,10 @@ class PhysicsObject(GameObject):
     @profiler
     def __init__(self, 
                     world: World,
-                    pos: Vector2, 
-                    radius: float, 
+                    pos: Vector2,
+                    radius: float,
                     color: str | Color,
-                    mass: float, 
+                    mass: float,
                     drag: float,
                     strokeColor: str | Color = Color(0, 0, 0),
                     strokeWidth: int = 1
@@ -102,6 +125,17 @@ class PhysicsObject(GameObject):
         self.acceleration = Vector2(0, 0)
         self.updateableIndex = world.updateable.add(self)
         self.lastUpdated = time.time()
+    
+    @profiler
+    def readout(self):
+        return f'''PhysicsObject:
+    Position: {self.pos.x:.2f}, {self.pos.y:.2f}
+    Velocity: {self.velocity.x:.2f}, {self.velocity.y:.2f}
+    Color: {self.color}
+    Radius: {self.radius:.2f}
+    Area: {self.area:.2f}
+    Sector Overlaps:
+    {'\n    '.join(map(str, zip(map(lambda x: x.sectorPos, self.sectors), self.sectorOverlaps)))}'''
     
     @profiler
     def delete(self, canvas: Canvas):

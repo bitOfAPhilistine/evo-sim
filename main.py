@@ -20,7 +20,7 @@ root.geometry(f"{config.CANVAS_SIZE.x}x{config.CANVAS_SIZE.y}")
 
 # Create the canvas, offset to the center of the world
 frame = ttk.Frame(root, width=config.CANVAS_SIZE.x, height=config.CANVAS_SIZE.y)
-canvas = Canvas(frame, width=config.CANVAS_SIZE.x, height=config.CANVAS_SIZE.y, bg="black", offset="center")
+canvas = Canvas(frame, width=config.CANVAS_SIZE.x, height=config.CANVAS_SIZE.y, offset="center")
 frame.pack()
 canvas.pack()
 
@@ -53,7 +53,7 @@ except getopt.error as err:
 
 @profiler
 def clear_monitoring():
-    if globals.monitoring != None:
+    if globals.monitoring:
         for _ in globals.monitoringString.split('\n'):
             print(config.LINE_UP, end=config.LINE_CLEAR)
         globals.monitoringString = globals.monitoring.readout()
@@ -61,7 +61,7 @@ def clear_monitoring():
         if isinstance(globals.monitoring, GameObject):
             globals.monitoring.strokeColor.b = 0
         elif isinstance(globals.monitoring, Sector):
-            globals.monitoring.draw(canvas, False)
+            canvas.itemconfig(globals.monitoring.shape, outline='')
         globals.monitoring = None
 
 def profilerTimes_to_string(times, parentTotal = 1.0, depth = 0) -> str:
@@ -144,6 +144,11 @@ def on_right_click(event):
         
         print(f"Now monitoring:")
         globals.monitoring = sector
+        canvas.itemconfig(globals.monitoring.shape, outline='blue')
+        for neighbor in [Vector2(1, 0), Vector2(-1, 0), Vector2(0, 1), Vector2(0, -1)]:
+            n = world.sectors.get(globals.monitoring.sectorPos + neighbor)
+            if n:
+                canvas.tkraise(n.shape, globals.monitoring.shape)
         globals.monitoringString = globals.monitoring.readout()
         print(globals.monitoringString)
 canvas.bind("<Button-3>", on_right_click)

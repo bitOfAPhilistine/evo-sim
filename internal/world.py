@@ -30,7 +30,8 @@ class Sector:
         self.baseNutrients = nutrients
         self.shape = None
         self.rgb = Color(0, 0, 0)
-    
+        self.beingMonitored = False
+
     @profiler
     def readout(self):
         return f'''Sector:
@@ -47,37 +48,32 @@ class Sector:
         return self.objects.remove(index)
 
     @profiler
-    @functools.cache
-    def get_overlap(self, posx: float, posy: float, radius: float, precision: int) -> float:
-        pos = Vector2(posx, posy)
-        sectorCorners = [
-            [Vector2(self.bounds[0].x, self.bounds[0].y), False],
-            [Vector2(self.bounds[1].x, self.bounds[0].y), False],
-            [Vector2(self.bounds[0].x, self.bounds[1].y), False],
-            [Vector2(self.bounds[1].x, self.bounds[1].y), False]
-        ]
-        sectorCorners = tuple(map(lambda x: (x[0], check_point_circle(x[0], pos, radius)), sectorCorners))
-
-        return grid_border_search(sectorCorners, pos, radius, divided_grid_sizes(precision))
+    def get_overlap(self, pos: Vector2, radius: float, precision: int) -> float:
+        return grid_border_search(self.sectorPos, pos, radius, precision)
     
     @profiler
-    def draw(self, canvas, isMonitored):
+    def draw(self, canvas):
         rgb = Color(
             int((1 - self.nutrients) * 255),
             int((0.95 - self.nutrients * 1.25) * 255),
             int((0.9 - self.nutrients * 1.45) * 255)
         )
 
-        if self.rgb != rgb or isMonitored:
-            if self.shape is not None:
-                canvas.delete(self.shape)
+        if self.rgb != rgb or self.beingMonitored:
+            if not self.shape:
+                self.shape = canvas.create_rectangle(
+                    self.bounds[0].x, self.bounds[0].y,
+                    self.bounds[1].x, self.bounds[1].y,
+                    fill=rgb.to_hex(),
+                    outline=""
+                )
 
-            self.shape = canvas.create_rectangle(
-                self.bounds[0].x, self.bounds[0].y,
-                self.bounds[1].x, self.bounds[1].y,
+            canvas.itemconfig(
+                self.shape,
                 fill=rgb.to_hex(),
-                outline="blue" if isMonitored else ""
+                outline="blue" if self.beingMonitored else ""
             )
+            
             self.rgb = rgb
 
 class Sectors:
@@ -150,10 +146,10 @@ class Sectors:
             for x in range(self.width):
                 sector = self.sectors[y][x]
                 if globals.monitoring != sector:
-                    sector.draw(canvas, False)
+                    sector.draw(canvas)
         
         if isinstance(globals.monitoring, Sector):
-            globals.monitoring.draw(canvas, True)
+            globals.monitoring.draw(canvas)
     
     @profiler
     def update(self):
@@ -211,7 +207,7 @@ class World():
             overlaps = [0.0 for _ in obj.sectors]
 
             for i in range(len(obj.sectors)):
-                overlaps[i] = obj.sectors[i].get_overlap(obj.pos.x, obj.pos.y, obj.radius, config.areaCalcPrecision) * self.sectors.sectorArea / obj.area
+                overlaps[i] = obj.sectors[i].get_overlap(obj.pos, obj.radius, config.areaCalcPrecision) * self.sectors.sectorArea / obj.area
             
             obj.sectorOverlaps = overlaps
             obj.queued = False
@@ -236,7 +232,7 @@ class World():
             self.sectors.update()
         
         frameTime = time.time() - startTime
-        if frameTime > config.TARGET_FRAMERATE * 5:
+        if len(self.overlapRequests) > 0:
             config.areaCalcPrecision = max(config.MIN_AREA_CALC_PRECISION, config.areaCalcPrecision - 1)
         elif frameTime < config.TARGET_FRAMERATE:
             config.areaCalcPrecision = min(config.MAX_AREA_CALC_PRECISION, config.areaCalcPrecision + 1)

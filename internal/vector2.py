@@ -9,10 +9,7 @@ class Vector2:
         if y != None:
             self.x, self.y = x, y
         else:
-            if isinstance(x, tuple):
-                self.x, self.y = x[0], x[1]
-            else:
-                self.x, self.y = x, x
+            self.x, self.y = x, x
 
     @profiler
     def __eq__(self, other) -> bool:
@@ -95,3 +92,7 @@ class Vector2:
     @profiler
     def copy(self):
         return Vector2(self.x, self.y)
+    
+    @profiler
+    def tuple(self):
+        return (self.x, self.y)
