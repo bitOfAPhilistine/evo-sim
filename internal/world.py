@@ -178,6 +178,22 @@ class Sectors:
                     sector.nutrients += (sector.baseNutrients - sector.nutrients) * dt * config.SECTOR_DECAY_RATE
         self.lastUpdated = time.time()
 
+class Species():
+    @profiler
+    def __init__(self, index, genome):
+        self.index = index
+        self.genome = genome
+        self.memberCount = 0
+        self.parent = None
+        self.isExtinct = False
+    
+    @profiler
+    def sub1(self):
+        self.memberCount -= 1
+        if self.memberCount <= 0:
+            self.isExtinct = True
+            print(f"Species {self.index} has gone extinct")
+
 class World():
     @profiler
     def __init__(self):
@@ -185,7 +201,7 @@ class World():
         self.updateable: SmartList = SmartList() 
         self.updateable0Index: int = 0  
         self.sectors: Sectors = Sectors()
-        self.species: list = []
+        self.species: list[Species] = []
         self.plantCount: int = 0
         self.seedCount: int = 0
         self.overlapRequests: list = []
@@ -196,7 +212,7 @@ class World():
     {self.plantCount} plants
     {self.seedCount} seeds
     ---Species---
-    {self.species}'''
+    {list(map(lambda s: s.index, filter(lambda s: not s.isExtinct, self.species)))}'''
     
     @profiler
     def request_overlaps(self, obj):
@@ -204,8 +220,11 @@ class World():
         obj.queued = True
     
     @profiler
-    def create_species(self, genome: Genome) -> int:
-        self.species.append(genome)
+    def create_species(self, genome: Genome, initial: bool) -> Species:
+        self.species.append(Species(len(self.species), genome))
+        if initial:
+            print(f"Initial species {len(self.species) - 1} created")
+        return self.species[-1]
     
     @profiler
     def update(self, canvas, dt, startTime):

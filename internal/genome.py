@@ -65,3 +65,26 @@ class Genome:
         self.seedSpeed = clamp(self.seedSpeed, 0.0, config.MAX_SEED_SPEED)
         self.lifespan = clamp(self.lifespan, config.MIN_LIFESPAN, config.MAX_LIFESPAN)
         self.healthThresh = clamp(self.healthThresh, 0.0, 100.0)
+    
+    @profiler
+    def dist(self, other) -> tuple[float, str]:
+        totalDist = 0.0
+        highestDist = ('', 0.0)
+        for trait in ranges:
+            if trait == 'color':
+                colorDist = 0.0
+                for channel in ['r', 'g', 'b']:
+                    colorDist += abs(getattr(self.color, channel) - getattr(other.color, channel)) / ranges['color'] / 3
+                
+                totalDist += colorDist
+                highestDist = ('color', colorDist)
+
+                continue
+            
+            dist = abs(getattr(self, trait) - getattr(other, trait)) / ranges[trait]
+            totalDist += dist
+
+            if dist > highestDist[1]:
+                highestDist = (trait, dist)
+
+        return totalDist, highestDist[0]

@@ -2,7 +2,7 @@ import math
 from tkinter import Canvas
 from internal.vector2 import Vector2
 from internal.smartList import SmartList
-from internal.world import Sectors, World
+from internal.world import Sectors, World, Species
 from internal.objects import GameObject, PhysicsObject
 from internal.genome import Genome
 from internal.color import Color
@@ -16,13 +16,15 @@ import config, time
 
 class Plant(GameObject):
     @profiler
-    def __init__(self, world: World, pos: Vector2, genome: Genome = None, isMutant = False):
+    def __init__(self, world: World, pos: Vector2, genome: Genome = None, isMutant = False, species = None):
         
         self.genome = Genome() if genome is None else genome
 
         super().__init__(world, pos, self.genome.maxRadius * config.SEED_SIZE_FACTOR, self.genome.color)
 
         self.isMutant = isMutant
+        self.species = species if species != None else world.create_species(self.genome, True)
+        self.species.memberCount += 1
         self.updateableIndex = world.updateable.add(self)
         self.lastUpdated = time.time()
         self.sectorOverlaps = [1.0 / len(self.sectors) for _ in self.sectors]
@@ -39,7 +41,7 @@ class Plant(GameObject):
         self.healthThresh = self.genome.healthThresh
         
         self.photoFactor = sum(map(lambda mine, opt: (256 - mine) / (256 - opt), self.baseColor, Color(*config.OPTIMAL_PLANT_COLOR))) / 3
-        self.growthRate = self.maxRadius * 0.9 / (self.lifespan / self.growthSpeed * (2.1 - self.rootDepth * 2))
+        self.growthRate = self.maxRadius * 0.9 / (self.lifespan / (self.growthSpeed * (1.5 - self.rootDepth)))
         self.seedSize = self.maxRadius * config.SEED_SIZE_FACTOR
         self.seedForce = self.seedSpeed * (self.seedSize ** 2 * math.pi)
         self.seedCost = (math.log10(self.seedSpeed) * (self.seedSize ** 2 * math.pi)) if self.seedSpeed > 0.0 else 0.0
@@ -57,8 +59,8 @@ class Plant(GameObject):
     Area: {self.area:.2f}
     Sector Overlaps:
         {'\n        '.join(list(map(lambda sector, overlap: f"({sector.sectorPos.x:.0f}, {sector.sectorPos.y:.0f}): {overlap:.3f}", self.sectors, self.sectorOverlaps)))}
-    Is Queued: {self.queued}
     Is Mutant: {self.isMutant}
+    Species: {self.species.index}
     ---Genome---
     {self.genome.readout()}
     ---Derived---
@@ -79,6 +81,7 @@ class Plant(GameObject):
         if self.updateableIndex is not None:
             self.world.updateable.remove(self.updateableIndex)
         
+        self.species.sub1()
         self.world.plantCount -= 1
 
     @profiler
@@ -153,11 +156,26 @@ class Plant(GameObject):
                 angle = rand.uniform(0, 2 * math.pi)
                 distance = self.radius + self.seedSize
                 offset = Vector2(distance * math.cos(angle), distance * math.sin(angle))
+
+                if self.isMutant:
+                    dists = self.genome.dist(self.species.genome)
+                    if dists[0] > 0.1:
+                        newSpecies = self.world.create_species(self.genome, False)
+                        newSpecies.parent = self.species
+                        self.species.memberCount -= 1
+                        newSpecies.memberCount += 1
+
+                        print(f"Species {self.species.index} has speciated into {newSpecies.index}, main difference: {dists[1]}")
+
+                        self.species = newSpecies
+                    self.isMutant = False
+
                 seed = Seed(
                     world=self.world,
                     pos=self.pos + offset,
                     radius=self.seedSize,
-                    genome=self.genome
+                    genome=self.genome,
+                    species=self.species
                 )
 
                 seed.apply_force(offset.normalize().scale(self.seedForce))
@@ -170,13 +188,14 @@ class Plant(GameObject):
 
 class Seed(PhysicsObject):
     @profiler
-    def __init__(self, world: World, pos: Vector2, radius: float, genome: Genome):
+    def __init__(self, world: World, pos: Vector2, radius: float, genome: Genome, species: Species):
         super().__init__(world, pos, radius, Color(145, 45, 30), math.pi * radius ** 2, config.SEED_DRAG)
 
         self.world.seedCount += 1
 
         self.isMutant = rand.random() < config.MUTATION_CHANCE
         self.genome: Genome = None
+        self.species = species
         if self.isMutant:
             self.genome = genome.mutate()
         else:
@@ -192,6 +211,7 @@ class Seed(PhysicsObject):
     Radius: {self.radius:.2f}
     Velocity: {self.velocity}
     Is Mutant: {self.isMutant}
+    Species: {self.species}
     ---Genome---
     {self.genome.readout()}'''
 
@@ -210,6 +230,7 @@ class Seed(PhysicsObject):
                 world=self.world,
                 pos=self.pos.copy(),
                 genome=self.genome,
-                isMutant=self.isMutant
+                isMutant=self.isMutant,
+                species=self.species
             )
             self.delete(canvas)
