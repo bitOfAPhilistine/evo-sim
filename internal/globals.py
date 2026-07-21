@@ -1,5 +1,6 @@
 monitoring = None
-monitoringString = ""
+monitoringText = None
+clearMonitoring = False
 running = True
 debug = False
 profiling = False

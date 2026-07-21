@@ -65,7 +65,8 @@ class Sector:
                     self.bounds[0].x, self.bounds[0].y,
                     self.bounds[1].x, self.bounds[1].y,
                     fill=rgb.to_hex(),
-                    outline=""
+                    outline="",
+                    width=2
                 )
 
             canvas.itemconfig(
@@ -190,6 +191,14 @@ class World():
         self.overlapRequests: list = []
     
     @profiler
+    def readout(self):
+        return f'''World:
+    {self.plantCount} plants
+    {self.seedCount} seeds
+    ---Species---
+    {self.species}'''
+    
+    @profiler
     def request_overlaps(self, obj):
         self.overlapRequests.append(obj)
         obj.queued = True
@@ -208,6 +217,14 @@ class World():
 
             for i in range(len(obj.sectors)):
                 overlaps[i] = obj.sectors[i].get_overlap(obj.pos, obj.radius, config.areaCalcPrecision) * self.sectors.sectorArea / obj.area
+            
+            nTotal = 0.0
+            for val in overlaps:
+                nTotal += val
+
+            if nTotal > 0.0:
+                for i in range(len(overlaps)):
+                    overlaps[i] /= nTotal
             
             obj.sectorOverlaps = overlaps
             obj.queued = False

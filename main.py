@@ -1,4 +1,3 @@
-from tkinter import Canvas, Tk, ttk, TclError
 from internal.color import Color
 from internal.plants import Plant
 from internal.world import Sector, Sectors, World
@@ -8,19 +7,20 @@ from internal.objects import GameObject, PhysicsObject
 from internal.funcs import *
 from internal.profiler import profiler
 
+import tkinter as tk
 import internal.globals as globals
 import random as rand
 import config, time, sys, gc, getopt
 
 
 # Initialize the main window
-root = Tk()
+root = tk.Tk()
 root.title("Evo-Sim")
 root.geometry(f"{config.CANVAS_SIZE.x}x{config.CANVAS_SIZE.y}")
 
 # Create the canvas, offset to the center of the world
-frame = ttk.Frame(root, width=config.CANVAS_SIZE.x, height=config.CANVAS_SIZE.y)
-canvas = Canvas(frame, width=config.CANVAS_SIZE.x, height=config.CANVAS_SIZE.y, offset="center")
+frame = tk.Frame(root, width=config.CANVAS_SIZE.x, height=config.CANVAS_SIZE.y)
+canvas = tk.Canvas(frame, width=config.CANVAS_SIZE.x, height=config.CANVAS_SIZE.y, offset="center")
 frame.pack()
 canvas.pack()
 
@@ -54,15 +54,19 @@ except getopt.error as err:
 @profiler
 def clear_monitoring():
     if globals.monitoring:
-        for _ in globals.monitoringString.split('\n'):
-            print(config.LINE_UP, end=config.LINE_CLEAR)
-        globals.monitoringString = globals.monitoring.readout()
-        print(globals.monitoringString)
+        canvas.delete(globals.monitoringText)
+
+        globals.monitoring.beingMonitored = False
+
         if isinstance(globals.monitoring, GameObject):
             globals.monitoring.strokeColor.b = 0
+            globals.monitoring.redraw = True
         elif isinstance(globals.monitoring, Sector):
             canvas.itemconfig(globals.monitoring.shape, outline='')
+        
         globals.monitoring = None
+        globals.monitoringText = None
+        globals.clearMonitoring = False
 
 def profilerTimes_to_string(times, parentTotal = 1.0, depth = 0) -> str:
     output: str = ""
@@ -111,18 +115,10 @@ def on_closing(event=None):
 root.protocol("WM_DELETE_WINDOW", on_closing)
 
 
-# On left click, check for an object at the clicked position and print its details
+# On left click, clear monitored object
 @profiler
 def on_left_click(event):
     clear_monitoring()
-    sector = world.sectors.get(Vector2(event.x // config.SECTOR_SIZE.x, event.y // config.SECTOR_SIZE.y))
-
-    for obj in sector.objects:
-        if obj and check_point_circle(Vector2(event.x, event.y), obj.pos, obj.radius):
-            print(f"Clicked on: {obj.readout()}")
-            return
-    
-    print(f"Clicked on: {sector.readout()}")
 canvas.bind("<Button-1>", on_left_click)
 
 
@@ -130,28 +126,29 @@ canvas.bind("<Button-1>", on_left_click)
 @profiler
 def on_right_click(event):
     clear_monitoring()
-    if not globals.debug:
-        sector = world.sectors.get(Vector2(event.x // config.SECTOR_SIZE.x, event.y // config.SECTOR_SIZE.y))
+    sector = world.sectors.get(Vector2(event.x // config.SECTOR_SIZE.x, event.y // config.SECTOR_SIZE.y))
 
-        for obj in sector.objects:
-            if obj and check_point_circle(Vector2(event.x, event.y), obj.pos, obj.radius):
-                print(f"Now monitoring:")
-                globals.monitoring = obj
-                globals.monitoring.strokeColor.b = 255
-                globals.monitoringString = globals.monitoring.readout()
-                print(globals.monitoringString)
-                return
-        
-        print(f"Now monitoring:")
-        globals.monitoring = sector
-        canvas.itemconfig(globals.monitoring.shape, outline='blue')
-        for neighbor in [Vector2(1, 0), Vector2(-1, 0), Vector2(0, 1), Vector2(0, -1)]:
-            n = world.sectors.get(globals.monitoring.sectorPos + neighbor)
-            if n:
-                canvas.tkraise(n.shape, globals.monitoring.shape)
-        globals.monitoringString = globals.monitoring.readout()
-        print(globals.monitoringString)
+    for obj in sector.objects:
+        if obj and check_point_circle(Vector2(event.x, event.y), obj.pos, obj.radius):
+            globals.monitoring = obj
+            globals.monitoring.beingMonitored = True
+            globals.monitoring.strokeColor.b = 255
+            globals.monitoring.redraw = True
+            return
+    
+    globals.monitoring = sector
+    globals.monitoring.beingMonitored = True
+    canvas.itemconfig(globals.monitoring.shape, outline='blue')
 canvas.bind("<Button-3>", on_right_click)
+
+
+# On w, start monitoring the world
+@profiler
+def on_w(event):
+    clear_monitoring()
+    globals.monitoring = world
+    globals.monitoring.beingMonitored = True
+root.bind("<w>", on_w)
 
 
 # On r, reinitialize the world
@@ -162,26 +159,14 @@ def on_r(event):
     initialize()
 root.bind("<r>", on_r)
 
-'''
+
 # On d, toggle debug printing
+@profiler
 def on_d(event):
     globals.debug = not globals.debug
-    clear_monitoring()
     print("Debug printing activated" if globals.debug else "Debug printing deactivated")
 root.bind("<d>", on_d)
 
-
-# On p, toggle the profiler
-def on_p(event):
-    globals.profiling = not globals.profiling
-    clear_monitoring()
-    if globals.profiling:
-        print("Profiling activated")
-    else: 
-        print("Profiling deactivated")
-        print(f"{profilerTimes_to_string(globals.profilerTimes)}")
-root.bind("<p>", on_p)
-'''
 
 @profiler
 def main(dt, startTime):
@@ -200,16 +185,27 @@ def main(dt, startTime):
             except Exception as e:
                 print(f"Error drawing obj: {obj}\n{e}")
     
-    if globals.monitoring != None:
-        for _ in globals.monitoringString.splitlines():
-            print(config.LINE_UP, end=config.LINE_CLEAR)
-        globals.monitoringString = globals.monitoring.readout()
-        print(globals.monitoringString)
+    if globals.clearMonitoring:
+        clear_monitoring()
+    
+    if globals.monitoring:
+        if not globals.monitoringText:
+            globals.monitoringText = canvas.create_text(
+                10, 10,
+                fill="light blue",
+                anchor="nw"
+            )
+        
+        canvas.itemconfig(globals.monitoringText,
+            text=globals.monitoring.readout()
+        )
+        canvas.tkraise(globals.monitoringText)
 
 
 if __name__ == "__main__" and globals.running:
     dt = config.TARGET_FRAMERATE
     initialize()
+    
     while globals.running:
         t = time.time()
 
@@ -217,7 +213,7 @@ if __name__ == "__main__" and globals.running:
 
         try:
             root.update()
-        except TclError:
+        except tk.TclError:
             break
 
         ft = time.time() - t

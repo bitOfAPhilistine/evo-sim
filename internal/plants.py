@@ -39,7 +39,7 @@ class Plant(GameObject):
         self.healthThresh = self.genome.healthThresh
         
         self.photoFactor = sum(map(lambda mine, opt: (256 - mine) / (256 - opt), self.baseColor, Color(*config.OPTIMAL_PLANT_COLOR))) / 3
-        self.growthRate = self.maxRadius * 0.9 / (self.lifespan / self.growthSpeed * (1.5 - self.rootDepth))
+        self.growthRate = self.maxRadius * 0.9 / (self.lifespan / self.growthSpeed * (2.1 - self.rootDepth * 2))
         self.seedSize = self.maxRadius * config.SEED_SIZE_FACTOR
         self.seedForce = self.seedSpeed * (self.seedSize ** 2 * math.pi)
         self.seedCost = (math.log10(self.seedSpeed) * (self.seedSize ** 2 * math.pi)) if self.seedSpeed > 0.0 else 0.0
@@ -56,7 +56,7 @@ class Plant(GameObject):
     Radius: {self.radius:.2f}
     Area: {self.area:.2f}
     Sector Overlaps:
-    {'\n    '.join(map(str, zip(map(lambda x: x.sectorPos, self.sectors), self.sectorOverlaps)))}
+        {'\n        '.join(list(map(lambda sector, overlap: f"({sector.sectorPos.x:.0f}, {sector.sectorPos.y:.0f}): {overlap:.3f}", self.sectors, self.sectorOverlaps)))}
     Is Queued: {self.queued}
     Is Mutant: {self.isMutant}
     ---Genome---
@@ -80,8 +80,6 @@ class Plant(GameObject):
             self.world.updateable.remove(self.updateableIndex)
         
         self.world.plantCount -= 1
-        if self.beingMonitored:
-            globals.monitoring = None
 
     @profiler
     def update_sectors(self):
@@ -149,7 +147,7 @@ class Plant(GameObject):
                 self.radius = min(self.maxRadius, self.radius + dt * self.growthRate)
                 self.maxNutrients = self.area
                 
-                self.nutrients -= dt * self.growthRate
+                self.nutrients -= dt * (self.growthRate ** 2 * math.pi)
             elif self.nutrients > self.seedCost and rand.random() < 1.0 / (self.world.seedCount + 1):
                 self.nutrients -= self.seedCost
                 angle = rand.uniform(0, 2 * math.pi)

@@ -62,6 +62,7 @@ class GameObject:
                 outline=self.strokeColor.to_hex(),
                 width=self.strokeWidth
             )
+        
         if self.redraw:
             if not canvas.winfo_exists():
                 return
@@ -95,6 +96,9 @@ class GameObject:
     def delete(self, canvas: Canvas):
         if globals.debug:
             print(f"Deleting: {object.__repr__(self)}")
+        
+        if self.beingMonitored:
+            globals.clearMonitoring = True
         
         if self.shape is not None and canvas.winfo_exists():
             canvas.delete(self.shape)

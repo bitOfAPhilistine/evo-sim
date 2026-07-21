@@ -1,7 +1,7 @@
 from internal.profiler import profiler
 
 import internal.globals as globals
-import math
+import math, functools
 
 class Vector2:
     @profiler
@@ -79,7 +79,8 @@ class Vector2:
 
     @profiler
     def middle(self, other):
-        return Vector2((self.x + other.x) / 2, (self.y + other.y) / 2)
+        out = _middle(self.x, self.y, other.x, other.y)
+        return Vector2(out[0], out[1])
 
     @profiler
     def distance_to(self, other):
@@ -96,3 +97,7 @@ class Vector2:
     @profiler
     def tuple(self):
         return (self.x, self.y)
+
+@functools.cache
+def _middle(x1: float, y1: float, x2: float, y2: float) -> tuple[float, float]:
+    return ((x1 + x2) / 2, (y1 + y2) / 2)
