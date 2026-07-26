@@ -117,13 +117,13 @@ class PhysicsObject(GameObject):
                     pos: Vector2,
                     radius: float,
                     color: str | Color,
-                    mass: float,
+                    density: float,
                     drag: float,
                     strokeColor: str | Color = Color(0, 0, 0),
                     strokeWidth: int = 1
                 ):
         super().__init__(world, pos, radius, color, strokeColor, strokeWidth)
-        self.mass = mass
+        self.density = density
         self.drag = drag
         self.velocity = Vector2(0, 0)
         self.acceleration = Vector2(0, 0)
@@ -138,6 +138,8 @@ class PhysicsObject(GameObject):
     Color: {self.color}
     Radius: {self.radius:.2f}
     Area: {self.area:.2f}
+    Density: {self.density:.2f}
+    Mass: {self.mass():.2f}
     Sector Overlaps:
     {'\n    '.join(map(str, zip(map(lambda x: x.sectorPos, self.sectors), self.sectorOverlaps)))}'''
     
@@ -148,7 +150,11 @@ class PhysicsObject(GameObject):
             self.world.updateable.remove(self.updateableIndex)
 
     def apply_force(self, force: Vector2):
-        self.acceleration += force / self.mass
+        self.acceleration += force / self.mass()
+
+    @profiler
+    def mass(self):
+        return self.area * self.density
     
     @profiler
     def check_collide(self, other, givenNormal=None):
@@ -159,7 +165,7 @@ class PhysicsObject(GameObject):
             if normal == Vector2(0, 0):
                 normal = Vector2(random.uniform(-1, 1), random.uniform(-1, 1)).normalize()
 
-            self.apply_force(normal.scale(totalRadius - (self.pos - other.pos).magnitude()).scale(self.mass))
+            self.apply_force(normal.scale(totalRadius - (self.pos - other.pos).magnitude()).scale(self.mass()))
 
             if isinstance(other, PhysicsObject) and givenNormal is None:
                 other.check_collide(self, normal.scale(-1))

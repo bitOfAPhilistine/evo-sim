@@ -43,7 +43,7 @@ class Plant(GameObject):
         self.photoFactor = sum(map(lambda mine, opt: (256 - mine) / (256 - opt), self.baseColor, Color(*config.OPTIMAL_PLANT_COLOR))) / 3
         self.growthRate = self.maxRadius * 0.9 / (self.lifespan / (self.growthSpeed * (1.5 - self.rootDepth)))
         self.seedSize = self.maxRadius * config.SEED_SIZE_FACTOR
-        self.seedForce = self.seedSpeed * (self.seedSize ** 2 * math.pi)
+        self.seedForce = self.seedSpeed * (self.seedSize ** 2 * math.pi) * config.SEED_DENSITY
         self.seedCost = (math.log10(self.seedSpeed) * (self.seedSize ** 2 * math.pi)) if self.seedSpeed > 0.0 else 0.0
 
         self.lifeLeft = self.lifespan
@@ -189,7 +189,7 @@ class Plant(GameObject):
 class Seed(PhysicsObject):
     @profiler
     def __init__(self, world: World, pos: Vector2, radius: float, genome: Genome, species: Species):
-        super().__init__(world, pos, radius, Color(145, 45, 30), math.pi * radius ** 2, config.SEED_DRAG)
+        super().__init__(world, pos, radius, Color(145, 45, 30), config.SEED_DENSITY, config.SEED_DRAG)
 
         self.world.seedCount += 1
 

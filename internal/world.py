@@ -212,7 +212,7 @@ class World():
     {self.plantCount} plants
     {self.seedCount} seeds
     ---Species---
-    {list(map(lambda s: s.index, filter(lambda s: not s.isExtinct, self.species)))}'''
+    {"\n    ".join(list(map(lambda s: f"{s.index}: {s.memberCount} member{'s' if s.memberCount > 1 else ''}", filter(lambda s: not s.isExtinct, self.species))))}'''
     
     @profiler
     def request_overlaps(self, obj):
@@ -252,6 +252,9 @@ class World():
         if len(self.updateable) > 0:
             for i in [(self.updateable0Index + i) % len(self.updateable) for i in range(len(self.updateable))]:
                 if frameTime < config.TARGET_FRAMERATE * 2.0:
+                    if i >= len(self.updateable):
+                        break
+                    
                     obj = self.updateable[i]
                     if obj:
                         try:
