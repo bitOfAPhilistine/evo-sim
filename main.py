@@ -9,8 +9,9 @@ from internal.profiler import profiler
 
 import tkinter as tk
 import internal.globals as globals
+import internal.alerts as alerts
 import random as rand
-import config, time, sys, gc, getopt
+import config, time, sys, getopt
 
 
 # Initialize the main window
@@ -23,6 +24,7 @@ frame = tk.Frame(root, width=config.CANVAS_SIZE.x, height=config.CANVAS_SIZE.y)
 canvas = tk.Canvas(frame, width=config.CANVAS_SIZE.x, height=config.CANVAS_SIZE.y, offset="center")
 frame.pack()
 canvas.pack()
+alerts.canvas = canvas
 
 # Process arguments
 args = sys.argv[1:]
@@ -90,7 +92,7 @@ def profiledFrameTimes_to_string(ft) -> str:
 @profiler
 def initialize():
     clear_monitoring()
-    print("Initializing world...")
+    alerts.add("Initializing world...")
     global world
     world = World()
 
@@ -155,7 +157,7 @@ root.bind("<w>", on_w)
 @profiler
 def on_r(event):
     clear_monitoring()
-    print("Manual restart, resetting world...")
+    alerts.add("Manual restart, resetting world...")
     initialize()
 root.bind("<r>", on_r)
 
@@ -171,7 +173,7 @@ root.bind("<d>", on_d)
 @profiler
 def main(dt, startTime):
     if len(world.objects) == 0:
-        print("Mass extinction event, resetting world...")
+        alerts.add("Mass extinction event, resetting world...")
         initialize()
 
     world.update(canvas, dt, startTime)
@@ -200,6 +202,8 @@ def main(dt, startTime):
             text=globals.monitoring.readout()
         )
         canvas.tkraise(globals.monitoringText)
+
+    alerts.update()
 
 
 if __name__ == "__main__" and globals.running:

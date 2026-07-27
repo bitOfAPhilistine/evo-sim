@@ -10,6 +10,7 @@ from internal.funcs import *
 from internal.profiler import profiler
 
 import internal.globals as globals
+import internal.alerts as alerts
 import random as rand
 import config, time
 
@@ -165,7 +166,7 @@ class Plant(GameObject):
                         self.species.memberCount -= 1
                         newSpecies.memberCount += 1
 
-                        print(f"Species {self.species.index} has speciated into {newSpecies.index}, main difference: {dists[1]}")
+                        alerts.add(f"Species {self.species.index} has speciated into {newSpecies.index}, main difference: {dists[1]}")
 
                         self.species = newSpecies
                     self.isMutant = False

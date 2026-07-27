@@ -6,6 +6,7 @@ from internal.funcs import *
 from internal.profiler import profiler
 
 import internal.globals as globals
+import internal.alerts as alerts
 import random as rand
 import config, copy, math, functools, time
 
@@ -192,7 +193,7 @@ class Species():
         self.memberCount -= 1
         if self.memberCount <= 0:
             self.isExtinct = True
-            print(f"Species {self.index} has gone extinct")
+            alerts.add(f"Species {self.index} has gone extinct")
 
 class World():
     @profiler
@@ -223,7 +224,7 @@ class World():
     def create_species(self, genome: Genome, initial: bool) -> Species:
         self.species.append(Species(len(self.species), genome))
         if initial:
-            print(f"Initial species {len(self.species) - 1} created")
+            alerts.add(f"Initial species {len(self.species) - 1} created")
         return self.species[-1]
     
     @profiler
