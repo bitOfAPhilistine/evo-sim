@@ -1,5 +1,4 @@
 import math
-from tkinter import Canvas
 from internal.vector2 import Vector2
 from internal.smartList import SmartList
 from internal.world import Sectors, World, Species
@@ -8,6 +7,7 @@ from internal.genome import Genome
 from internal.color import Color
 from internal.funcs import *
 from internal.profiler import profiler
+from tkinter import font, Canvas
 
 import internal.globals as globals
 import internal.alerts as alerts
@@ -26,6 +26,7 @@ class Plant(GameObject):
         self.isMutant = isMutant
         self.species = species if species != None else world.create_species(self.genome, True)
         self.species.memberCount += 1
+        self.speciesText = None
         self.updateableIndex = world.updateable.add(self)
         self.lastUpdated = time.time()
         self.sectorOverlaps = [1.0 / len(self.sectors) for _ in self.sectors]
@@ -51,6 +52,52 @@ class Plant(GameObject):
         self.health = 100.0
         self.nutrients = 0.0
         self.maxNutrients = self.area
+
+    @profiler
+    def draw(self, canvas):
+        if not self.shape:
+            self.shape = canvas.create_oval(
+                self.pos.x - self.radius, self.pos.y - self.radius, self.pos.x + self.radius, self.pos.y + self.radius,
+                fill=self.color.to_hex(),
+                outline=self.strokeColor.to_hex(),
+                width=self.strokeWidth
+            )
+
+        if globals.showSpecies and not self.speciesText:
+            self.speciesText = canvas.create_text(
+                self.pos.x, self.pos.y,
+                fill="black" if self.color.val() > 0.5 else "white",
+                anchor="center",
+                text=self.species.index,
+                font=font.Font(size=max(4, int(round_to_mult(self.radius / 1.5, 2))))
+            )
+        
+        if self.redraw:
+            if not canvas.winfo_exists():
+                return
+            
+            canvas.coords(
+                self.shape,
+                (self.pos.x - self.radius, self.pos.y - self.radius, self.pos.x + self.radius, self.pos.y + self.radius)
+            )
+            canvas.itemconfig(
+                self.shape,
+                fill=self.color.to_hex(),
+                outline=self.strokeColor.to_hex(),
+                width=self.strokeWidth
+            )
+
+            if globals.showSpecies:
+                canvas.coords(
+                    self.speciesText,
+                    self.pos.tuple()
+                )
+                canvas.itemconfig(
+                    self.speciesText,
+                    font=font.Font(size=max(4, int(round_to_mult(self.radius / 1.5, 2))))
+                )
+
+            self.redraw = False
     
     @profiler
     def readout(self):
@@ -81,6 +128,9 @@ class Plant(GameObject):
         super().delete(canvas)
         if self.updateableIndex is not None:
             self.world.updateable.remove(self.updateableIndex)
+
+        if self.speciesText is not None:
+            canvas.delete(self.speciesText)
         
         self.species.sub1()
         self.world.plantCount -= 1

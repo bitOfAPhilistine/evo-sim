@@ -209,11 +209,14 @@ class World():
     
     @profiler
     def readout(self):
+        speciesList = list(filter(lambda s: not s.isExtinct, self.species))
+        speciesList.sort(key=lambda s: s.memberCount, reverse=True)
+
         return f'''World:
     {self.plantCount} plants
     {self.seedCount} seeds
     ---Species---
-    {"\n    ".join(list(map(lambda s: f"{s.index}: {s.memberCount} member{'s' if s.memberCount > 1 else ''}", filter(lambda s: not s.isExtinct, self.species))))}'''
+    {"\n    ".join(list(map(lambda s: f"{s.index}: {s.memberCount} member{'s' if s.memberCount > 1 else ''}",speciesList)))}'''
     
     @profiler
     def request_overlaps(self, obj):

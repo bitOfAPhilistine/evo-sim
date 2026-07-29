@@ -3,6 +3,7 @@ monitoringText = None
 clearMonitoring = False
 running = True
 debug = False
+showSpecies = False
 profiling = False
 profilerTimes = {}
 profiledFrameTimes = {}

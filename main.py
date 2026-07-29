@@ -36,8 +36,12 @@ helpMsg = '''Terminal Args:
 -p or --Profiler: enable profiler
 
 In-Sim Controls:
-Left-Click: prints stats of the thing clicked on
-Right-Click: continuously prints stats of the thing clicked on until something else is selected'''
+Right Click: starts monitoring the thing clicked on
+Left Click: clears the monitoring text
+W: starts monitoring the world
+S: toggles showing the species id of each plant
+R: restarts the world
+D: toggles debug printing'''
 try:
     args, _ = getopt.getopt(args, options, longOptions)
     for arg, _ in args:
@@ -127,11 +131,12 @@ canvas.bind("<Button-1>", on_left_click)
 # On right click, mark an object to be monitored
 @profiler
 def on_right_click(event):
+    prevMonitoring = globals.monitoring
     clear_monitoring()
     sector = world.sectors.get(Vector2(event.x // config.SECTOR_SIZE.x, event.y // config.SECTOR_SIZE.y))
 
     for obj in sector.objects:
-        if obj and check_point_circle(Vector2(event.x, event.y), obj.pos, obj.radius):
+        if obj and obj is not prevMonitoring and check_point_circle(Vector2(event.x, event.y), obj.pos, obj.radius):
             globals.monitoring = obj
             globals.monitoring.beingMonitored = True
             globals.monitoring.strokeColor.b = 255
@@ -170,6 +175,13 @@ def on_d(event):
 root.bind("<d>", on_d)
 
 
+# On s, toggle showing the species index on top of each plant
+@profiler
+def on_s(event):
+    globals.showSpecies = not globals.showSpecies
+root.bind("<s>", on_s)
+
+
 @profiler
 def main(dt, startTime):
     if len(world.objects) == 0:
@@ -182,10 +194,7 @@ def main(dt, startTime):
 
     for obj in world.objects:
         if obj != None:
-            try:
-                obj.draw(canvas)
-            except Exception as e:
-                print(f"Error drawing obj: {obj}\n{e}")
+            obj.draw(canvas)
     
     if globals.clearMonitoring:
         clear_monitoring()
@@ -194,7 +203,7 @@ def main(dt, startTime):
         if not globals.monitoringText:
             globals.monitoringText = canvas.create_text(
                 10, 10,
-                fill="light blue",
+                fill=config.TEXT_COLOR,
                 anchor="nw"
             )
         

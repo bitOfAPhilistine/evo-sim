@@ -43,7 +43,7 @@ def update():
         if not alert.text:
             alert.text = canvas.create_text(
                 config.CANVAS_SIZE.x - 10, 10,
-                fill="light blue",
+                fill=config.TEXT_COLOR,
                 anchor="ne",
                 text=alert.string
             )

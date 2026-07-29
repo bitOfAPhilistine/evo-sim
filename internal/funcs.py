@@ -30,9 +30,7 @@ def check_point_circle(point: Vector2, center: Vector2, radius: float) -> bool:
 
 @profiler
 def check_rect_circle(minCorner: Vector2, maxCorner: Vector2, center: Vector2, radius: float) -> bool:
-    closest = Vector2(max(minCorner.x, min(center.x, maxCorner.x)), max(minCorner.y, min(center.y, maxCorner.y)))
-
-    dif = center - closest
+    dif = center - Vector2(max(minCorner.x, min(center.x, maxCorner.x)), max(minCorner.y, min(center.y, maxCorner.y)))
 
     return dif.x ** 2 + dif.y ** 2 <= radius ** 2
 
