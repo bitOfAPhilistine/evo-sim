@@ -2,33 +2,31 @@ from internal.vector2 import Vector2
 
 
 # World Configs
-LINE_UP = '\033[1A'
-LINE_CLEAR = '\x1b[2K'
 TARGET_FRAMERATE = 1/60
 CANVAS_SIZE = Vector2(1200, 800)
-SECTOR_SIZE = Vector2(100, 100)
-TEXT_COLOR = "teal"
+SECTOR_SIZE = Vector2(50) # Size of each sector, used for physics and nutrients, one value makes both axes equal, lower values mey be laggy
+TEXT_COLOR = "white" # Color of the monitoring and alert text
+ALERT_LIFETIME = 5 # How long the alerts in the top right last, in seconds
 
-STARTING_PLANTS = 15
-SECTOR_BLUR_LEVEL = 2
-SECTOR_MAX_FRAMES_BETWEEN_SMOOTH = 10
-SECTOR_REGEN_RATE = 0.1
-SECTOR_DECAY_RATE = 0.01
+STARTING_PLANTS = 25
+SECTOR_BLUR_LEVEL = 5 # How smoothed the base nutrient levels of the sectors are
+SECTOR_REGEN_RATE = 0.1 # How fast each sector raises back to its base nutrient level
+SECTOR_DECAY_RATE = 0.01 # How fast each sector lowers back to its base nutrient level
+# Max and min precision for the area overlap estimation
 MIN_AREA_CALC_PRECISION = 4
 MAX_AREA_CALC_PRECISION = 8
-ALERT_LIFETIME = 5
 
 
 # Plant Configs
-OPTIMAL_PLANT_COLOR = (0, 200, 0)
-PLANT_NUTRIENT_EFFICIENCY = 2
+OPTIMAL_PLANT_COLOR = (0, 200, 0) # Optimal color for plants to be, plants with higher values than this will get less nutrients, plants with lower values will get more but take constant damage
+PLANT_NUTRIENT_EFFICIENCY = 2 # Multiplier on how many nutrients plants extract from the ground
 SEED_DRAG = 0.25
 SEED_DENSITY = 1.0
 SEED_SIZE_FACTOR = 0.1
 SEED_COST_FACTOR = 0.1
 MUTATION_CHANCE = 0.25
-MUTATION_FACTOR = 0.25
-MUTATION_CENTER_WEIGHTING = 5
+MUTATION_FACTOR = 0.25 # Max change a single mutation can cause, multiplied by the max range of the trait being mutated
+MUTATION_CENTER_WEIGHTING = 5 # Higher values = less extreme mutations
 
 
 # Plant Genome Configs
@@ -38,9 +36,3 @@ MAX_GROWTH_SPEED = 5.0
 MAX_SEED_SPEED = 100.0
 MIN_LIFESPAN = 30.0
 MAX_LIFESPAN = 300.0
-
-
-
-# Derived values, do not edit
-areaCalcPrecision = MAX_AREA_CALC_PRECISION
-maxTimeBetweenSectorSmoothing = TARGET_FRAMERATE * SECTOR_MAX_FRAMES_BETWEEN_SMOOTH

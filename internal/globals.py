@@ -9,3 +9,4 @@ profilerTimes = {}
 profiledFrameTimes = {}
 profilerFuncStack = []
 lagSpikeLog = ""
+areaCalcPrecision = 0

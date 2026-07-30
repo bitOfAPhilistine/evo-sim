@@ -14,6 +14,15 @@ import random as rand
 import config, time, sys, getopt
 
 
+# Check config settings are valid
+if config.CANVAS_SIZE.x % config.SECTOR_SIZE.x != 0 or config.CANVAS_SIZE.y % config.SECTOR_SIZE.y != 0:
+    config.CANVAS_SIZE.x = round_to_mult(config.CANVAS_SIZE.x, config.SECTOR_SIZE.x)
+    config.CANVAS_SIZE.y = round_to_mult(config.CANVAS_SIZE.y, config.SECTOR_SIZE.y)
+    print(f"Canvas size is not multiple of sector size, corrected to ({config.CANVAS_SIZE.x:.0f}, {config.CANVAS_SIZE.y:.0f})")
+
+globals.areaCalcPrecision = config.MAX_AREA_CALC_PRECISION
+
+
 # Initialize the main window
 root = tk.Tk()
 root.title("Evo-Sim")

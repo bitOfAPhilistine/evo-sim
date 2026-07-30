@@ -16,15 +16,14 @@ ranges = {
     'lifespan': config.MAX_LIFESPAN - config.MIN_LIFESPAN,
     'healthThresh': 100.0
 }
-initColorDistFromOpt = 64
 
 class Genome:
     @profiler
     def __init__(self):
         self.color: Color = Color(
-            rand.randint(max(config.OPTIMAL_PLANT_COLOR[0] - initColorDistFromOpt, 0), min(config.OPTIMAL_PLANT_COLOR[0] + initColorDistFromOpt, 255)),
-            rand.randint(max(config.OPTIMAL_PLANT_COLOR[1] - initColorDistFromOpt, 0), min(config.OPTIMAL_PLANT_COLOR[1] + initColorDistFromOpt, 255)),
-            rand.randint(max(config.OPTIMAL_PLANT_COLOR[2] - initColorDistFromOpt, 0), min(config.OPTIMAL_PLANT_COLOR[2] + initColorDistFromOpt, 255))
+            rand.randint(0, 255),
+            rand.randint(0, 255),
+            rand.randint(0, 255)
         )
         self.maxRadius: float = rand.uniform(config.MIN_PLANT_RADIUS, config.MAX_PLANT_RADIUS)
         self.growthSpeed: float = rand.uniform(1.0, config.MAX_GROWTH_SPEED)
@@ -35,7 +34,7 @@ class Genome:
     
     @profiler
     def readout(self):
-        return f'''Base Color: {self.color}
+        return f'''Base Color: ({self.color.r}, {self.color.g}, {self.color.b})
     Max Radius: {self.maxRadius:.2f}
     Growth Speed: {self.growthSpeed:.2f}
     Root Depth: {self.rootDepth:.2f}

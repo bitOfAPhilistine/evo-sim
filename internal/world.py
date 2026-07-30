@@ -88,19 +88,25 @@ class Sectors:
         self.sectors: list[list[Sector | None]] = [[None for _ in range(self.width)] for _ in range(self.height)]
         self.lastUpdated = time.time()
 
+        prevSectors = [[rand.uniform(0.0, 1.0) for _ in range(self.width)] for _ in range(self.height)]
+        sectors = [[0 for _ in range(self.width)] for _ in range(self.height)]
         for _ in range(config.SECTOR_BLUR_LEVEL):
-            initTiles = [[rand.uniform(0.0, 1.0) for _ in range(self.width)] for _ in range(self.height)]
             for y in range(self.height):
                 for x in range(self.width):
                     neighborNuts = []
                     for dPos in neighbors:
                         checkPos = Vector2(x, y) + dPos
                         if 0 <= checkPos.x < self.width and 0 <= checkPos.y < self.height:
-                            neighborNuts.append(initTiles[checkPos.y][checkPos.x])
+                            neighborNuts.append(prevSectors[checkPos.y][checkPos.x])
                     
                     if len(neighborNuts) > 0:
-                        avg = (initTiles[y][x] + sum(neighborNuts) / len(neighborNuts)) / 2
-                        self.sectors[y][x] = Sector(Vector2(x, y), config.SECTOR_SIZE, avg)
+                        avg = (prevSectors[y][x] + sum(neighborNuts) / len(neighborNuts)) / 2
+                        sectors[y][x] = avg
+            prevSectors = copy.deepcopy(sectors)
+
+        for y in range(self.height):
+            for x in range(self.width):
+                self.sectors[y][x] = Sector(Vector2(x, y), config.SECTOR_SIZE, sectors[y][x])
 
     @profiler
     def get(self, pos: Vector2) -> Sector | None:
@@ -239,7 +245,7 @@ class World():
             overlaps = [0.0 for _ in obj.sectors]
 
             for i in range(len(obj.sectors)):
-                overlaps[i] = obj.sectors[i].get_overlap(obj.pos, obj.radius, config.areaCalcPrecision) * self.sectors.sectorArea / obj.area
+                overlaps[i] = obj.sectors[i].get_overlap(obj.pos, obj.radius, globals.areaCalcPrecision) * self.sectors.sectorArea / obj.area
             
             nTotal = 0.0
             for val in overlaps:
@@ -271,11 +277,10 @@ class World():
                     self.updateable0Index = (i + 1) % len(self.updateable)
                     break
         
-        if frameTime < config.TARGET_FRAMERATE or time.time() - self.sectors.lastUpdated > config.maxTimeBetweenSectorSmoothing:
-            self.sectors.update()
+        self.sectors.update()
         
         frameTime = time.time() - startTime
         if len(self.overlapRequests) > 0:
-            config.areaCalcPrecision = max(config.MIN_AREA_CALC_PRECISION, config.areaCalcPrecision - 1)
+            globals.areaCalcPrecision = max(config.MIN_AREA_CALC_PRECISION, globals.areaCalcPrecision - 1)
         elif frameTime < config.TARGET_FRAMERATE:
-            config.areaCalcPrecision = min(config.MAX_AREA_CALC_PRECISION, config.areaCalcPrecision + 1)
+            globals.areaCalcPrecision = min(config.MAX_AREA_CALC_PRECISION, globals.areaCalcPrecision + 1)
