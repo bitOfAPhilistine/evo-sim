@@ -8,17 +8,26 @@ This is a project I made for the personal project on Boot.dev, I was a bit overa
  - Tkinter (should be installed with Python be default)
 
 To run the program, either run the run.sh file, or run the main.py file in the terminal. The program accepts the following args in the terminal:
+
 -h or --Help: prints a message containing all accepted args and in-sim controls
+
 -d or --Debug: enable debug printing
+
 -p or --Profiler: enable profiler
 
 ## Controls
 Right Click: starts monitoring the thing clicked on
+
 Left Click: clears the monitoring text
+
 W: starts monitoring the world
+
 S: toggles showing the species id of each plant
+
 R: restarts the world
+
 D: toggles debug printing
+
 
 ## Features
  - A species system which creates new species if a mutated plant successfully has offspring, the species id of each plant can be seen by pressing s.
