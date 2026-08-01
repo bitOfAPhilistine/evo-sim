@@ -14,11 +14,44 @@ import random as rand
 import config, time, sys, getopt
 
 
-# Check config settings are valid
+# Check config settings are valid and correct automatically if possible
+if config.CANVAS_SIZE.x < config.SECTOR_SIZE.x or config.CANVAS_SIZE.x < config.SECTOR_SIZE.y:
+    print(f"Canvas size ({config.CANVAS_SIZE.x:.0f}, {config.CANVAS_SIZE.y:.0f}) is too small for 1 sector on at least one axis, defaulted to (1200, 800)")
+    config.CANVAS_SIZE = Vector2(1200, 800)
+
 if config.CANVAS_SIZE.x % config.SECTOR_SIZE.x != 0 or config.CANVAS_SIZE.y % config.SECTOR_SIZE.y != 0:
+    print(f"Canvas size ({config.CANVAS_SIZE.x:.0f}, {config.CANVAS_SIZE.y:.0f}) is not multiple of sector size, corrected to ({round_to_mult(config.CANVAS_SIZE.x, config.SECTOR_SIZE.x):.0f}, {round_to_mult(config.CANVAS_SIZE.y, config.SECTOR_SIZE.y):.0f})")
     config.CANVAS_SIZE.x = round_to_mult(config.CANVAS_SIZE.x, config.SECTOR_SIZE.x)
     config.CANVAS_SIZE.y = round_to_mult(config.CANVAS_SIZE.y, config.SECTOR_SIZE.y)
-    print(f"Canvas size is not multiple of sector size, corrected to ({config.CANVAS_SIZE.x:.0f}, {config.CANVAS_SIZE.y:.0f})")
+
+if not 0 < config.MAX_AREA_CALC_PRECISION:
+    print(f"Max Area Calc Precision ({config.MAX_AREA_CALC_PRECISION}) is less than or equal to 0, corrected to 1")
+    config.MAX_AREA_CALC_PRECISION = 1
+elif not 0 < config.MIN_AREA_CALC_PRECISION <= config.MAX_AREA_CALC_PRECISION:
+    print(f"Max Area Calc Precision ({config.MIN_AREA_CALC_PRECISION}) is less than or equal to 0, or greater than Max Area Calc Precision, corrected to 1")
+    config.MIN_AREA_CALC_PRECISION = 1
+
+if not 0 < config.MAX_PLANT_RADIUS:
+    print(f"Max Plant Radius ({config.MAX_PLANT_RADIUS}) is less than or equal to 0, defaulted to 50")
+    config.MAX_PLANT_RADIUS = 50.0
+elif not 0 < config.MIN_PLANT_RADIUS <= config.MAX_PLANT_RADIUS:
+    print(f"Min Plant Radius ({config.MIN_PLANT_RADIUS}) is less than or equal to 0, or greater than Max Plant Radius, corrected to {min(5.0, config.MAX_PLANT_RADIUS)}")
+    config.MIN_PLANT_RADIUS = min(5.0, config.MAX_PLANT_RADIUS)
+
+if not 1 < config.MAX_GROWTH_SPEED:
+    print(f"Max Growth Speed ({config.MAX_GROWTH_SPEED}) is less than or equal to 1, defaulted to 5")
+    config.MAX_GROWTH_SPEED = 5.0
+
+if not 0 < config.MAX_SEED_SPEED:
+    print(f"Max Seed Speed ({config.MAX_SEED_SPEED}) is less than or equal to 0, defaulted to 100")
+    config.MAX_SEED_SPEED = 100.0
+
+if not 0 < config.MAX_LIFESPAN:
+    print(f"Max Lifespan ({config.MAX_LIFESPAN}) is less than or equal to 0, defaulted to 300")
+    config.MAX_LIFESPAN = 300.0
+elif not 0 < config.MIN_LIFESPAN <= config.MAX_LIFESPAN:
+    print(f"Min Lifespan ({config.MIN_LIFESPAN}) is less than or equal to 0, or greater than Max Lifespan, corrected to {min(30.0, config.MAX_LIFESPAN)}")
+    config.MIN_LIFESPAN = min(5.0, config.MAX_LIFESPAN)
 
 globals.areaCalcPrecision = config.MAX_AREA_CALC_PRECISION
 
@@ -123,7 +156,7 @@ def on_closing(event=None):
     globals.running = False
     root.destroy()
     if len(globals.profilerTimes) > 0:
-        with open("internal/profiler.txt", 'w') as f:
+        with open("profiler.txt", 'w') as f:
             s = profilerTimes_to_string(globals.profilerTimes)
             s += "\n\nLag Spikes:" + globals.lagSpikeLog
             f.write(s)

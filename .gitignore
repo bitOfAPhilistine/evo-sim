@@ -1,4 +1,4 @@
 *.pyc
 *.pyo
 *.pyd
-internal/profiler.txt
+profiler.txt

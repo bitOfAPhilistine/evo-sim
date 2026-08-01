@@ -4,7 +4,7 @@ from internal.vector2 import Vector2
 # World Configs
 TARGET_FRAMERATE = 1/60
 CANVAS_SIZE = Vector2(1200, 800)
-SECTOR_SIZE = Vector2(50) # Size of each sector, used for physics and nutrients, one value makes both axes equal, lower values mey be laggy
+SECTOR_SIZE = Vector2(50) # Size of each sector, used for physics and nutrients, one value makes both axes equal, lower values may be laggy
 TEXT_COLOR = "white" # Color of the monitoring and alert text
 ALERT_LIFETIME = 5 # How long the alerts in the top right last, in seconds
 
